@@ -267,11 +267,11 @@ Estos repositorios sirven como referencia de producto, arquitectura y experienci
 - Registro de ingresos y gastos.
 - Categorías financieras.
 - Dashboard con saldos, totales y distribución de gastos.
-- Persistencia privada en el navegador.
+- Persistencia en PostgreSQL sobre Neon mediante API server-side.
 - Interfaz responsive y manifiesto PWA.
 
-La persistencia local permite validar los flujos sin configurar infraestructura. Antes de usar
-datos financieros reales se reemplazará por PostgreSQL y autenticación segura con Better Auth.
+La autenticación de esta fase sigue siendo de demostración. Antes de usar datos financieros reales
+se debe habilitar Better Auth y separar los workspaces por usuario.
 
 ### Ejecutar localmente
 
@@ -279,10 +279,26 @@ Requiere Node.js 20 o superior.
 
 ```bash
 npm install
+npm run db:generate
 npm run dev
 ```
 
-Abre `http://localhost:3000`. La pantalla de acceso incluye credenciales de demostración.
+Configura `DATABASE_URL` usando `.env.example` antes de abrir `http://localhost:3000`. La pantalla
+de acceso incluye credenciales de demostración.
+
+### Base de datos
+
+La primera migración está en `drizzle/0000_optimal_black_bird.sql`. Para generar cambios futuros:
+
+```bash
+npm run db:generate
+npm run db:push
+```
+
+Las variables requeridas son:
+
+- `DATABASE_URL`: conexión pooled de Neon, únicamente server-side.
+- `RUTASALDO_WORKSPACE_ID`: identificador del workspace demo.
 
 ```bash
 npm run lint

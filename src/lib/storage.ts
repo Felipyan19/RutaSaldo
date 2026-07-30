@@ -1,21 +1,23 @@
-import { FinanceState, seedState } from "./finance";
+import { FinanceState } from "./finance";
 
-const DATA_KEY = "rutasaldo.finance.v1";
-
-export function loadFinanceState(): FinanceState {
-  const raw = localStorage.getItem(DATA_KEY);
-  if (!raw) return seedState;
-  try {
-    return JSON.parse(raw) as FinanceState;
-  } catch {
-    return seedState;
-  }
+export async function loadFinanceState(): Promise<FinanceState> {
+  const response = await fetch("/api/finance", { cache: "no-store" });
+  if (!response.ok) throw new Error("No se pudo cargar el estado financiero");
+  return response.json() as Promise<FinanceState>;
 }
 
-export function saveFinanceState(state: FinanceState) {
-  localStorage.setItem(DATA_KEY, JSON.stringify(state));
+export async function saveFinanceState(state: FinanceState): Promise<FinanceState> {
+  const response = await fetch("/api/finance", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(state),
+  });
+  if (!response.ok) throw new Error("No se pudo guardar el estado financiero");
+  return response.json() as Promise<FinanceState>;
 }
 
-export function resetFinanceState() {
-  localStorage.removeItem(DATA_KEY);
+export async function resetFinanceState(): Promise<FinanceState> {
+  const response = await fetch("/api/finance", { method: "DELETE" });
+  if (!response.ok) throw new Error("No se pudieron restaurar los datos demo");
+  return response.json() as Promise<FinanceState>;
 }
