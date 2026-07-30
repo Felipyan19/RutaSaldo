@@ -1,8 +1,20 @@
 import { BrandMark } from "@/components/brand-mark";
 
-export function RutaSaldoLoader({ label = "Cargando RutaSaldo…" }: { label?: string }) {
+export function RutaSaldoLoader({
+  label = "Cargando RutaSaldo…",
+  variant = "dark",
+  mode = "fullscreen",
+}: {
+  label?: string;
+  variant?: "dark" | "light";
+  mode?: "fullscreen" | "page";
+}) {
   return (
-    <main aria-busy="true" aria-live="polite" className="rutasaldo-loader min-h-screen bg-[#17231e] text-white">
+    <main
+      aria-busy="true"
+      aria-live="polite"
+      className={`rutasaldo-loader rutasaldo-loader--${variant} rutasaldo-loader--${mode}`}
+    >
       <div className="rutasaldo-loader__glow rutasaldo-loader__glow--one" />
       <div className="rutasaldo-loader__glow rutasaldo-loader__glow--two" />
       <div className="rutasaldo-loader__content">

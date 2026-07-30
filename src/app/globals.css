@@ -39,9 +39,46 @@ button {
 .rutasaldo-loader {
   position: relative;
   display: grid;
-  min-height: 100svh;
   place-items: center;
   overflow: hidden;
+}
+
+.rutasaldo-loader--fullscreen {
+  min-height: 100svh;
+}
+
+.rutasaldo-loader--page {
+  min-height: clamp(18rem, 45vh, 28rem);
+  border: 1px solid #e0e4dd;
+  border-radius: 1.5rem;
+  background: transparent;
+}
+
+.rutasaldo-loader--page .rutasaldo-loader__mark {
+  transform: scale(0.78);
+}
+
+.rutasaldo-loader--page .rutasaldo-loader__name {
+  margin-top: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.rutasaldo-loader--dark {
+  background: #17231e;
+  color: #fff;
+}
+
+.rutasaldo-loader--light {
+  background: #f4f5f0;
+  color: #18241e;
+}
+
+.rutasaldo-loader--page.rutasaldo-loader--light {
+  background: transparent;
+}
+
+.rutasaldo-loader--light .rutasaldo-loader__glow {
+  display: none;
 }
 
 .rutasaldo-loader__content {
@@ -145,6 +182,10 @@ button {
   font-size: 0.8rem;
 }
 
+.rutasaldo-loader--light .rutasaldo-loader__label {
+  color: #52665a;
+}
+
 .rutasaldo-loader__progress {
   position: relative;
   display: block;
@@ -154,6 +195,10 @@ button {
   overflow: hidden;
   border-radius: 999px;
   background: rgb(255 255 255 / 12%);
+}
+
+.rutasaldo-loader--light .rutasaldo-loader__progress {
+  background: #dce4dd;
 }
 
 .rutasaldo-loader__progress::after {
