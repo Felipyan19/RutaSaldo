@@ -1,0 +1,10 @@
+{
+  "name": "RutaSaldo",
+  "short_name": "RutaSaldo",
+  "description": "Controla cómo se mueve tu dinero.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f5f0",
+  "theme_color": "#17231e",
+  "lang": "es-CO"
+}
