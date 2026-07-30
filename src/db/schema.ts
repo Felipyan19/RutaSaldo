@@ -42,14 +42,27 @@ export const categories = pgTable("categories", {
   icon: text("icon").notNull(),
 });
 
+export const transfers = pgTable("transfers", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  fromAccountId: text("from_account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  toAccountId: text("to_account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  amount: integer("amount").notNull(),
+  description: text("description").notNull(),
+  date: date("date").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const transactions = pgTable("transactions", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   accountId: text("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
-  categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: "restrict" }),
+  categoryId: text("category_id").references(() => categories.id, { onDelete: "restrict" }),
   kind: text("kind").notNull(),
   amount: integer("amount").notNull(),
   description: text("description").notNull(),
   date: date("date").notNull(),
+  transferId: text("transfer_id").references(() => transfers.id, { onDelete: "cascade" }),
+  transferSide: text("transfer_side"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

@@ -27,6 +27,7 @@ export function stateToRows(state: FinanceState, workspaceId: string) {
       currency: "COP",
     })),
     categories: state.categories.map((category) => ({ ...category, workspaceId })),
+    transfers: state.transfers.map((transfer) => ({ ...transfer, workspaceId })),
     transactions: state.transactions.map((transaction) => ({ ...transaction, workspaceId })),
   };
 }

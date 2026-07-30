@@ -1,5 +1,6 @@
 export type AccountKind = "bank" | "wallet" | "cash";
-export type TransactionKind = "income" | "expense";
+export type TransactionKind = "income" | "expense" | "transfer";
+export type TransferSide = "outgoing" | "incoming";
 
 export interface Account {
   id: string;
@@ -20,8 +21,19 @@ export interface Category {
 export interface Transaction {
   id: string;
   accountId: string;
-  categoryId: string;
+  categoryId: string | null;
   kind: TransactionKind;
+  amount: number;
+  description: string;
+  date: string;
+  transferId?: string | null;
+  transferSide?: TransferSide | null;
+}
+
+export interface Transfer {
+  id: string;
+  fromAccountId: string;
+  toAccountId: string;
   amount: number;
   description: string;
   date: string;
@@ -32,6 +44,7 @@ export interface FinanceState {
   accounts: Account[];
   categories: Category[];
   transactions: Transaction[];
+  transfers: Transfer[];
 }
 
 export const seedState: FinanceState = {
@@ -50,6 +63,7 @@ export const seedState: FinanceState = {
     { id: "services", name: "Servicios", color: "#d4ae42", icon: "◐" },
     { id: "other", name: "Otros", color: "#8d9690", icon: "•" },
   ],
+  transfers: [],
   transactions: [
     { id: "t1", accountId: "primary", categoryId: "salary", kind: "income", amount: 2500000, description: "Ingreso de demostración", date: "2026-01-10" },
     { id: "t2", accountId: "primary", categoryId: "housing", kind: "expense", amount: 900000, description: "Vivienda", date: "2026-01-11" },
@@ -64,6 +78,7 @@ export const emptyFinanceState: FinanceState = {
   accounts: [],
   categories: [],
   transactions: [],
+  transfers: [],
 };
 
 export function accountBalance(account: Account, transactions: Transaction[]) {
@@ -71,7 +86,7 @@ export function accountBalance(account: Account, transactions: Transaction[]) {
     .filter((transaction) => transaction.accountId === account.id)
     .reduce(
       (balance, transaction) =>
-        balance + (transaction.kind === "income" ? transaction.amount : -transaction.amount),
+        balance + (transaction.kind === "income" || (transaction.kind === "transfer" && transaction.transferSide === "incoming") ? transaction.amount : -transaction.amount),
       account.openingBalance,
     );
 }
