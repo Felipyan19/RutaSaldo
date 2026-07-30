@@ -59,6 +59,13 @@ export const seedState: FinanceState = {
   ],
 };
 
+export const emptyFinanceState: FinanceState = {
+  workspaceName: "Mis finanzas",
+  accounts: [],
+  categories: [],
+  transactions: [],
+};
+
 export function accountBalance(account: Account, transactions: Transaction[]) {
   return transactions
     .filter((transaction) => transaction.accountId === account.id)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accountBalance, seedState, totals } from "./finance";
+import { accountBalance, emptyFinanceState, seedState, totals } from "./finance";
 
 describe("financial calculations", () => {
   it("adds income and subtracts expenses from an account", () => {
@@ -18,5 +18,11 @@ describe("financial calculations", () => {
     const snapshot = JSON.stringify(seedState);
     totals(seedState);
     expect(JSON.stringify(seedState)).toBe(snapshot);
+  });
+
+  it("starts a new workspace with no accounts or movements", () => {
+    expect(emptyFinanceState.accounts).toHaveLength(0);
+    expect(emptyFinanceState.transactions).toHaveLength(0);
+    expect(totals(emptyFinanceState)).toEqual({ income: 0, expenses: 0, balance: 0 });
   });
 });

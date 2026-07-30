@@ -69,7 +69,7 @@ export function TransactionForm({
           <label className="block text-sm font-medium">
             Categoría
             <select name="categoryId" className={inputClass}>
-              {categories.filter((category) => kind === "income" ? category.id === "salary" : category.id !== "salary").map((category) => (
+              {categories.filter((category) => kind === "income" ? category.name === "Ingresos" : category.name !== "Ingresos").map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>

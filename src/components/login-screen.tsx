@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Check, Route, ShieldCheck } from "lucide-react";
+import { useFormStatus } from "react-dom";
+import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { startGoogleAuth } from "@/app/actions";
+import { BrandMark } from "@/components/brand-mark";
 
 type AuthMode = "login" | "register";
 
@@ -39,7 +41,7 @@ export function LoginScreen({ errorCode }: { errorCode?: string }) {
       <section className="relative hidden overflow-hidden bg-[#17231e] p-14 text-white lg:flex lg:flex-col">
         <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#b7f34b]/10 blur-3xl" />
         <div className="relative flex items-center gap-3 text-lg font-semibold">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#b7f34b] text-[#17231e]"><Route size={22} /></span>
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#b7f34b] text-[#17231e]"><BrandMark size={22} /></span>
           RutaSaldo
         </div>
         <div className="relative my-auto max-w-xl">
@@ -59,7 +61,7 @@ export function LoginScreen({ errorCode }: { errorCode?: string }) {
       </section>
       <section className="flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-md">
-          <div className="mb-10 flex items-center gap-3 lg:hidden"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#17231e] text-[#b7f34b]"><Route size={22} /></span><span className="text-lg font-semibold">RutaSaldo</span></div>
+          <div className="mb-10 flex items-center gap-3 lg:hidden"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#17231e] text-[#b7f34b]"><BrandMark size={22} /></span><span className="text-lg font-semibold">RutaSaldo</span></div>
           <div className="mb-8"><p className="text-sm font-medium text-[#587164]">Tu espacio financiero privado</p><h2 className="mt-2 text-3xl font-semibold tracking-[-0.035em] text-[#17231e]">{isRegistering ? "Crea tu cuenta" : "Inicia sesión"}</h2><p className="mt-3 text-sm leading-6 text-[#68736d]">{isRegistering ? "Regístrate con Google y empieza a organizar tus cuentas, ingresos y gastos." : "Solo pueden entrar cuentas que ya estén registradas en RutaSaldo."}</p></div>
 
           <div className="mb-6 grid grid-cols-2 rounded-xl bg-[#e8ede9] p-1 text-sm font-semibold">
@@ -93,11 +95,36 @@ export function LoginScreen({ errorCode }: { errorCode?: string }) {
                 </label>
               </div>
             )}
-            <button type="submit" className="group flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#17231e] text-sm font-semibold text-white transition hover:bg-[#26372f]">{isRegistering ? "Crear cuenta con Google" : "Continuar con Google"}<ArrowRight size={17} className="transition group-hover:translate-x-1" /></button>
+            <GoogleAuthButton isRegistering={isRegistering} />
           </form>
           <p className="mt-8 text-center text-xs leading-5 text-[#8a948e]">{isRegistering ? "Al continuar, si no existe una cuenta con ese Google, crearemos una cuenta y un workspace privado." : "Si tu cuenta aún no existe, RutaSaldo no te dejará entrar: selecciona “Crear cuenta” para registrarte."}</p>
         </div>
       </section>
     </main>
+  );
+}
+
+function GoogleAuthButton({ isRegistering }: { isRegistering: boolean }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      aria-disabled={pending}
+      className="group flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#17231e] text-sm font-semibold text-white transition hover:bg-[#26372f] disabled:cursor-wait disabled:opacity-75"
+      disabled={pending}
+      type="submit"
+    >
+      {pending ? (
+        <>
+          <span className="rutasaldo-button-spinner" aria-hidden="true" />
+          {isRegistering ? "Creando tu cuenta…" : "Iniciando sesión…"}
+        </>
+      ) : (
+        <>
+          {isRegistering ? "Crear cuenta con Google" : "Continuar con Google"}
+          <ArrowRight size={17} className="transition group-hover:translate-x-1" />
+        </>
+      )}
+    </button>
   );
 }
