@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "./index";
 import { seedWorkspace } from "./seed";
 import { users, workspaces } from "./schema";
@@ -9,6 +9,7 @@ type GoogleUserProfile = {
   email: string;
   name?: string | null;
   image?: string | null;
+  consentVersion: string;
 };
 
 function workspaceIdForGoogleAccount(providerAccountId: string) {
@@ -16,7 +17,16 @@ function workspaceIdForGoogleAccount(providerAccountId: string) {
   return `workspace_${digest}`;
 }
 
-export async function ensureGoogleUser(profile: GoogleUserProfile) {
+export async function findGoogleUser(providerAccountId: string) {
+  const db = getDb();
+  const [user] = await db.select().from(users).where(and(
+    eq(users.provider, "google"),
+    eq(users.providerAccountId, providerAccountId),
+  ));
+  return user ?? null;
+}
+
+export async function createGoogleUser(profile: GoogleUserProfile) {
   const db = getDb();
   const userId = `google:${profile.providerAccountId}`;
   const workspaceId = workspaceIdForGoogleAccount(profile.providerAccountId);
@@ -30,9 +40,8 @@ export async function ensureGoogleUser(profile: GoogleUserProfile) {
     name: profile.name ?? null,
     image: profile.image ?? null,
     workspaceId,
-  }).onConflictDoUpdate({
-    target: users.id,
-    set: { email: profile.email, name: profile.name ?? null, image: profile.image ?? null, updatedAt: new Date() },
+    googleDataConsentAt: new Date(),
+    googleDataConsentVersion: profile.consentVersion,
   });
 
   await seedWorkspace(db, workspaceId);
