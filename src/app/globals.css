@@ -35,3 +35,189 @@ button {
   background: #b7f34b;
   color: #17231e;
 }
+
+.rutasaldo-loader {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+}
+
+.rutasaldo-loader__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rutasaldo-loader__glow,
+.rutasaldo-404-glow {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(8px);
+}
+
+.rutasaldo-loader__glow--one,
+.rutasaldo-404-glow--one {
+  top: -12rem;
+  right: -8rem;
+  width: 30rem;
+  height: 30rem;
+  background: rgb(183 243 75 / 10%);
+}
+
+.rutasaldo-loader__glow--two,
+.rutasaldo-404-glow--two {
+  bottom: -16rem;
+  left: -10rem;
+  width: 34rem;
+  height: 34rem;
+  background: rgb(83 129 101 / 13%);
+}
+
+.rutasaldo-loader__mark {
+  position: relative;
+  display: grid;
+  width: 8.5rem;
+  height: 8.5rem;
+  place-items: center;
+}
+
+.rutasaldo-loader__mark-box {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 5.5rem;
+  height: 5.5rem;
+  place-items: center;
+  border-radius: 1.7rem;
+  background: #b7f34b;
+  color: #17231e;
+  box-shadow: 0 0 0 0 rgb(183 243 75 / 35%), 0 0 4rem rgb(183 243 75 / 22%);
+  animation: rutasaldo-logo-breathe 2.2s ease-in-out infinite;
+}
+
+.rutasaldo-loader__orbit {
+  position: absolute;
+  width: 8rem;
+  height: 3rem;
+  border: 1px solid rgb(183 243 75 / 44%);
+  border-radius: 50%;
+  transform: rotate(-28deg);
+  animation: rutasaldo-orbit 2.8s linear infinite;
+}
+
+.rutasaldo-loader__orbit::after {
+  position: absolute;
+  top: 50%;
+  right: -0.25rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: #b7f34b;
+  box-shadow: 0 0 1rem rgb(183 243 75 / 85%);
+  content: "";
+  transform: translateY(-50%);
+}
+
+.rutasaldo-loader__orbit--two {
+  width: 7rem;
+  height: 2.4rem;
+  opacity: 0.5;
+  transform: rotate(55deg);
+  animation-direction: reverse;
+  animation-duration: 3.6s;
+}
+
+.rutasaldo-loader__name {
+  margin-top: 1.35rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.rutasaldo-loader__label {
+  margin-top: 0.55rem;
+  color: #aebbb3;
+  font-size: 0.8rem;
+}
+
+.rutasaldo-loader__progress {
+  position: relative;
+  display: block;
+  width: 7.5rem;
+  height: 0.2rem;
+  margin-top: 1.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+}
+
+.rutasaldo-loader__progress::after {
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  border-radius: inherit;
+  background: #b7f34b;
+  box-shadow: 0 0 0.8rem rgb(183 243 75 / 80%);
+  content: "";
+  animation: rutasaldo-progress 1.5s ease-in-out infinite;
+}
+
+.rutasaldo-button-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgb(255 255 255 / 30%);
+  border-top-color: #b7f34b;
+  border-radius: 50%;
+  animation: rutasaldo-spin 0.7s linear infinite;
+}
+
+@keyframes rutasaldo-logo-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(183 243 75 / 25%), 0 0 4rem rgb(183 243 75 / 22%);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 1rem rgb(183 243 75 / 0%), 0 0 5rem rgb(183 243 75 / 32%);
+  }
+}
+
+@keyframes rutasaldo-orbit {
+  from {
+    transform: rotate(-28deg) rotate(0deg);
+  }
+  to {
+    transform: rotate(-28deg) rotate(360deg);
+  }
+}
+
+@keyframes rutasaldo-progress {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(310%);
+  }
+}
+
+@keyframes rutasaldo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rutasaldo-loader__mark-box,
+  .rutasaldo-loader__orbit,
+  .rutasaldo-loader__progress::after,
+  .rutasaldo-button-spinner {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}

@@ -16,8 +16,8 @@ export async function saveFinanceState(state: FinanceState): Promise<FinanceStat
   return response.json() as Promise<FinanceState>;
 }
 
-export async function resetFinanceState(): Promise<FinanceState> {
+export async function clearFinanceState(): Promise<FinanceState> {
   const response = await fetch("/api/finance", { method: "DELETE" });
-  if (!response.ok) throw new Error("No se pudieron restaurar los datos demo");
+  if (!response.ok) throw new Error("No se pudieron limpiar los datos financieros");
   return response.json() as Promise<FinanceState>;
 }

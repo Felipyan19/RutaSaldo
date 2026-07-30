@@ -98,15 +98,13 @@ export async function DELETE() {
     const workspaceId = await currentWorkspaceId();
     if (!workspaceId) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     const db = getDb();
-    // Keep the workspace and user identity intact when restoring demo data.
+    // Keep the workspace, categories, and user identity intact while clearing financial data.
     // Deleting the workspace would cascade into `users` and invalidate the session.
     await db.delete(transactions).where(eq(transactions.workspaceId, workspaceId));
     await db.delete(accounts).where(eq(accounts.workspaceId, workspaceId));
-    await db.delete(categories).where(eq(categories.workspaceId, workspaceId));
-    await seedWorkspace(db, workspaceId);
     return NextResponse.json(await readState(db, workspaceId));
   } catch (error) {
     console.error("[finance] DELETE failed", error);
-    return NextResponse.json({ error: "No se pudieron restaurar los datos demo" }, { status: 500 });
+    return NextResponse.json({ error: "No se pudieron limpiar los datos financieros" }, { status: 500 });
   }
 }

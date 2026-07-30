@@ -13,7 +13,6 @@ import {
   Menu,
   MoreHorizontal,
   Plus,
-  Route,
   Settings,
   Tags,
   WalletCards,
@@ -23,14 +22,16 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import {
   Account,
   accountBalance,
+  emptyFinanceState,
   FinanceState,
   formatCOP,
   totals,
   Transaction,
 } from "@/lib/finance";
-import { loadFinanceState, resetFinanceState, saveFinanceState } from "@/lib/storage";
-import { seedState } from "@/lib/finance";
+import { clearFinanceState, loadFinanceState, saveFinanceState } from "@/lib/storage";
 import { logOut } from "@/app/actions";
+import { BrandMark } from "@/components/brand-mark";
+import { RutaSaldoLoader } from "@/components/rutasaldo-loader";
 import { AccountForm, TransactionForm } from "./forms";
 
 type View = "dashboard" | "accounts" | "transactions" | "categories";
@@ -57,7 +58,7 @@ function Sidebar({
     <>
       <div className="flex items-center gap-3 px-2">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#b7f34b] text-[#17231e]">
-          <Route size={22} />
+          <BrandMark size={22} />
         </span>
         <span className="text-lg font-semibold tracking-tight">RutaSaldo</span>
       </div>
@@ -113,7 +114,7 @@ export function Dashboard({ user }: { user: { id: string; name?: string | null; 
     loadFinanceState()
       .then(setState)
       .catch(() => {
-        setState(seedState);
+        setState(emptyFinanceState);
         setError("No se pudo conectar con la base de datos. Revisa DATABASE_URL en el entorno.");
       });
   }, []);
@@ -128,7 +129,7 @@ export function Dashboard({ user }: { user: { id: string; name?: string | null; 
     }
   }
 
-  if (!state) return <main className="min-h-screen bg-[#f4f5f0]" />;
+  if (!state) return <RutaSaldoLoader label="Cargando tus registros…" />;
 
   function addTransaction(transaction: Transaction) {
     void update({ ...state!, transactions: [transaction, ...state!.transactions] });
@@ -170,7 +171,17 @@ export function Dashboard({ user }: { user: { id: string; name?: string | null; 
               <Bell size={18} />
               <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#e76a58]" />
             </button>
-            <button onClick={() => setModal("transaction")} className="flex h-10 items-center gap-2 rounded-xl bg-[#17231e] px-4 text-sm font-semibold text-white">
+            <button
+              onClick={() => {
+                if (state.accounts.length === 0) {
+                  setView("accounts");
+                  setError("Agrega una cuenta antes de registrar un movimiento.");
+                  return;
+                }
+                setModal("transaction");
+              }}
+              className="flex h-10 items-center gap-2 rounded-xl bg-[#17231e] px-4 text-sm font-semibold text-white"
+            >
               <Plus size={17} /> <span className="hidden sm:inline">Movimiento</span>
             </button>
           </div>
@@ -190,11 +201,12 @@ export function Dashboard({ user }: { user: { id: string; name?: string | null; 
             <span>RutaSaldo · Fase 1</span>
             <button
               onClick={() => {
-                void resetFinanceState().then(setState).catch(() => setError("No se pudieron restaurar los datos demo."));
+                if (!window.confirm("¿Quieres eliminar todas tus cuentas y movimientos?")) return;
+                void clearFinanceState().then(setState).catch(() => setError("No se pudieron limpiar los datos financieros."));
               }}
               className="hover:text-[#18241e]"
             >
-              Restaurar datos demo
+              Limpiar cuentas y movimientos
             </button>
           </div>
         </div>
@@ -212,7 +224,7 @@ function Overview({ state, onViewChange }: { state: FinanceState; onViewChange: 
   const chartData = useMemo(
     () =>
       state.categories
-        .filter((category) => category.id !== "salary")
+        .filter((category) => category.name !== "Ingresos")
         .map((category) => ({
           name: category.name,
           color: category.color,
@@ -250,20 +262,27 @@ function Overview({ state, onViewChange }: { state: FinanceState; onViewChange: 
             </div>
             <button onClick={() => onViewChange("accounts")} className="text-xs font-semibold text-[#4f6c5c]">Ver todas</button>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {state.accounts.slice(0, 4).map((account) => (
-              <div key={account.id} className="group rounded-2xl border border-[#e7eae5] p-4 transition hover:border-[#bec9c1]">
-                <div className="flex items-center justify-between">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl text-white" style={{ backgroundColor: account.color }}>
-                    {account.kind === "cash" ? <CircleDollarSign size={19} /> : <CreditCard size={19} />}
-                  </span>
-                  <MoreHorizontal size={18} className="text-[#9da59f]" />
+          {state.accounts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#cbd5cc] p-6 text-center">
+              <p className="text-sm font-medium">Empieza agregando una cuenta</p>
+              <p className="mt-1 text-xs text-[#768179]">Tu saldo actual es $0.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {state.accounts.slice(0, 4).map((account) => (
+                <div key={account.id} className="group rounded-2xl border border-[#e7eae5] p-4 transition hover:border-[#bec9c1]">
+                  <div className="flex items-center justify-between">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl text-white" style={{ backgroundColor: account.color }}>
+                      {account.kind === "cash" ? <CircleDollarSign size={19} /> : <CreditCard size={19} />}
+                    </span>
+                    <MoreHorizontal size={18} className="text-[#9da59f]" />
+                  </div>
+                  <p className="mt-4 text-xs text-[#768179]">{account.institution} · {account.name}</p>
+                  <p className="mt-1 text-lg font-semibold">{formatCOP(accountBalance(account, state.transactions))}</p>
                 </div>
-                <p className="mt-4 text-xs text-[#768179]">{account.institution} · {account.name}</p>
-                <p className="mt-1 text-lg font-semibold">{formatCOP(accountBalance(account, state.transactions))}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-3xl border border-[#e0e4dd] bg-white p-5 md:p-7">
@@ -326,6 +345,13 @@ function Accounts({ state, onAdd }: { state: FinanceState; onAdd: () => void }) 
         <div><h2 className="text-2xl font-semibold tracking-tight">Todas tus cuentas</h2><p className="mt-1 text-sm text-[#768179]">Bancos, billeteras y efectivo en un solo lugar.</p></div>
         <button onClick={onAdd} className="flex h-10 items-center gap-2 rounded-xl border border-[#ccd4cd] bg-white px-4 text-sm font-semibold"><Plus size={16} /> Agregar</button>
       </div>
+      {state.accounts.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-[#cbd5cc] bg-white p-8 text-center">
+          <p className="font-medium">Aún no tienes cuentas</p>
+          <p className="mt-1 text-sm text-[#768179]">Agrega tu primera cuenta para comenzar desde cero.</p>
+          <button onClick={onAdd} className="mt-5 rounded-xl bg-[#17231e] px-4 py-2.5 text-sm font-semibold text-white">Agregar primera cuenta</button>
+        </div>
+      )}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {state.accounts.map((account) => (
           <div key={account.id} className="rounded-3xl border border-[#e0e4dd] bg-white p-6">
