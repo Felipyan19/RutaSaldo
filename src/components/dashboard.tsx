@@ -29,6 +29,7 @@ import {
   Transaction,
 } from "@/lib/finance";
 import { loadFinanceState, resetFinanceState, saveFinanceState } from "@/lib/storage";
+import { seedState } from "@/lib/finance";
 import { AccountForm, TransactionForm } from "./forms";
 
 type View = "dashboard" | "accounts" | "transactions" | "categories";
@@ -104,27 +105,37 @@ export function Dashboard({ onSignOut }: { onSignOut: () => void }) {
   const [view, setView] = useState<View>("dashboard");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [modal, setModal] = useState<"transaction" | "account" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Client-only hydration keeps browser persistence out of server rendering.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState(loadFinanceState());
+    loadFinanceState()
+      .then(setState)
+      .catch(() => {
+        setState(seedState);
+        setError("No se pudo conectar con la base de datos. Revisa DATABASE_URL en el entorno.");
+      });
   }, []);
 
-  function update(next: FinanceState) {
+  async function update(next: FinanceState) {
     setState(next);
-    saveFinanceState(next);
+    try {
+      await saveFinanceState(next);
+      setError(null);
+    } catch {
+      setError("El cambio se mostró localmente, pero no pudo guardarse en Neon.");
+    }
   }
 
   if (!state) return <main className="min-h-screen bg-[#f4f5f0]" />;
 
   function addTransaction(transaction: Transaction) {
-    update({ ...state!, transactions: [transaction, ...state!.transactions] });
+    void update({ ...state!, transactions: [transaction, ...state!.transactions] });
     setModal(null);
   }
 
   function addAccount(account: Account) {
-    update({ ...state!, accounts: [...state!.accounts, account] });
+    void update({ ...state!, accounts: [...state!.accounts, account] });
     setModal(null);
   }
 
@@ -165,6 +176,11 @@ export function Dashboard({ onSignOut }: { onSignOut: () => void }) {
         </header>
 
         <div className="p-5 md:p-8 lg:p-10">
+          {error && (
+            <div className="mb-5 rounded-2xl border border-[#e8c9bf] bg-[#fff4ef] px-4 py-3 text-sm text-[#914f3d]">
+              {error}
+            </div>
+          )}
           {view === "dashboard" && <Overview state={state} onViewChange={setView} />}
           {view === "accounts" && <Accounts state={state} onAdd={() => setModal("account")} />}
           {view === "transactions" && <Transactions state={state} />}
@@ -172,7 +188,9 @@ export function Dashboard({ onSignOut }: { onSignOut: () => void }) {
           <div className="mt-10 flex items-center justify-between border-t border-[#dde2db] pt-5 text-xs text-[#87918b]">
             <span>RutaSaldo · Fase 1</span>
             <button
-              onClick={() => { resetFinanceState(); setState(loadFinanceState()); }}
+              onClick={() => {
+                void resetFinanceState().then(setState).catch(() => setError("No se pudieron restaurar los datos demo."));
+              }}
               className="hover:text-[#18241e]"
             >
               Restaurar datos demo
