@@ -8,6 +8,20 @@
       "when": 1785385071696,
       "tag": "0000_optimal_black_bird",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785387489631,
+      "tag": "0001_fearless_blob",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785415199476,
+      "tag": "0002_add_google_data_consent",
+      "breakpoints": true
     }
   ]
 }

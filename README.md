@@ -263,6 +263,8 @@ Estos repositorios sirven como referencia de producto, arquitectura y experienci
 **Fase 1 disponible como prototipo funcional.**
 
 - Inicio de sesión con Google OAuth 2.0 y workspace privado por usuario.
+- Registro explícito con Google, con aceptación obligatoria del tratamiento de datos de Google.
+- Aviso de privacidad consultable desde el acceso y registro de versión/fecha del consentimiento.
 - Cuentas bancarias, billeteras y efectivo con saldo inicial.
 - Registro de ingresos y gastos.
 - Categorías financieras.
@@ -295,6 +297,9 @@ npm run db:generate
 npm run db:push
 ```
 
+La migración `0002_add_google_data_consent.sql` agrega a `users` la versión y fecha del consentimiento
+de datos de Google. Debe aplicarse en Neon antes de desplegar esta versión.
+
 Las variables requeridas son:
 
 - `DATABASE_URL`: conexión pooled de Neon, únicamente server-side.
@@ -315,6 +320,12 @@ https://ruta-saldo.vercel.app/api/auth/callback/google
 Configura las credenciales como variables server-side en local y en Vercel. Auth.js usa los scopes
 `openid`, `profile` y `email`; esta integración autentica al usuario y no solicita acceso a bancos,
 Gmail ni Google Drive.
+
+RutaSaldo separa los flujos **Iniciar sesión** y **Crear cuenta**. Iniciar sesión solo permite entrar a
+usuarios que ya existen en Neon; si la cuenta no existe, el callback OAuth rechaza el acceso y pide usar
+Crear cuenta. El registro muestra el aviso de privacidad y exige aceptar el tratamiento de los datos
+básicos compartidos por Google (nombre, correo, foto e identificador de cuenta) antes de crear el usuario
+y su workspace privado.
 
 ```bash
 npm run lint

@@ -14,6 +14,8 @@ export const users = pgTable("users", {
   name: text("name"),
   image: text("image"),
   workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  googleDataConsentAt: timestamp("google_data_consent_at", { withTimezone: true }),
+  googleDataConsentVersion: text("google_data_consent_version"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
