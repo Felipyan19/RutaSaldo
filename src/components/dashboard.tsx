@@ -30,6 +30,7 @@ import {
 } from "@/lib/finance";
 import { loadFinanceState, resetFinanceState, saveFinanceState } from "@/lib/storage";
 import { seedState } from "@/lib/finance";
+import { logOut } from "@/app/actions";
 import { AccountForm, TransactionForm } from "./forms";
 
 type View = "dashboard" | "accounts" | "transactions" | "categories";
@@ -45,12 +46,12 @@ function Sidebar({
   workspaceName,
   view,
   onViewChange,
-  onSignOut,
+  user,
 }: {
   workspaceName: string;
   view: View;
   onViewChange: (view: View) => void;
-  onSignOut: () => void;
+  user: { name?: string | null; email?: string | null; image?: string | null };
 }) {
   return (
     <>
@@ -85,14 +86,14 @@ function Sidebar({
         <button className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-[#aab7af] hover:bg-white/[.06]">
           <Settings size={18} /> Configuración
         </button>
-        <button onClick={onSignOut} className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-[#aab7af] hover:bg-white/[.06]">
-          <LogOut size={18} /> Cerrar sesión
-        </button>
+        <form action={logOut}>
+          <button type="submit" className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-[#aab7af] hover:bg-white/[.06]"><LogOut size={18} /> Cerrar sesión</button>
+        </form>
         <div className="mt-4 flex items-center gap-3 border-t border-white/10 px-2 pt-5">
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-[#d4e5d9] text-sm font-semibold text-[#21352b]">FC</div>
+          <div className="grid h-9 w-9 place-items-center rounded-full bg-[#d4e5d9] text-sm font-semibold text-[#21352b]">{(user.name ?? user.email ?? "U").slice(0, 2).toUpperCase()}</div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">Feli Castaño</p>
-            <p className="truncate text-xs text-[#839188]">demo@rutasaldo.app</p>
+            <p className="truncate text-sm font-medium">{user.name ?? "Usuario de RutaSaldo"}</p>
+            <p className="truncate text-xs text-[#839188]">{user.email}</p>
           </div>
         </div>
       </div>
@@ -100,7 +101,7 @@ function Sidebar({
   );
 }
 
-export function Dashboard({ onSignOut }: { onSignOut: () => void }) {
+export function Dashboard({ user }: { user: { id: string; name?: string | null; email?: string | null; image?: string | null } }) {
   const [state, setState] = useState<FinanceState | null>(null);
   const [view, setView] = useState<View>("dashboard");
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -142,13 +143,13 @@ export function Dashboard({ onSignOut }: { onSignOut: () => void }) {
   return (
     <div className="min-h-screen bg-[#f4f5f0] text-[#18241e]">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-[#17231e] p-5 text-white lg:flex">
-        <Sidebar workspaceName={state.workspaceName} view={view} onViewChange={(next) => { setView(next); setMobileMenu(false); }} onSignOut={onSignOut} />
+        <Sidebar workspaceName={state.workspaceName} view={view} onViewChange={(next) => { setView(next); setMobileMenu(false); }} user={user} />
       </aside>
       {mobileMenu && (
         <div className="fixed inset-0 z-40 bg-black/40 lg:hidden">
           <aside className="flex h-full w-72 flex-col bg-[#17231e] p-5 text-white">
             <button onClick={() => setMobileMenu(false)} className="absolute right-4 top-4 p-2"><X /></button>
-            <Sidebar workspaceName={state.workspaceName} view={view} onViewChange={(next) => { setView(next); setMobileMenu(false); }} onSignOut={onSignOut} />
+            <Sidebar workspaceName={state.workspaceName} view={view} onViewChange={(next) => { setView(next); setMobileMenu(false); }} user={user} />
           </aside>
         </div>
       )}

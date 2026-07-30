@@ -121,7 +121,7 @@ flowchart TB
 | UI | Tailwind CSS + shadcn/ui | Componentes accesibles y reutilizables |
 | Base de datos | PostgreSQL | Persistencia transaccional |
 | ORM | Drizzle o Prisma | Esquema, migraciones y consultas |
-| Autenticación | Better Auth | Sesiones y proveedores de acceso |
+| Autenticación | Auth.js + Google OAuth 2.0 | Identidad, sesión cifrada y acceso por usuario |
 | Validación | Zod | Contratos y formularios |
 | Gráficas | Recharts | Dashboard y reportes |
 | Jobs | BullMQ + Redis | Recurrencias, importaciones y procesos en segundo plano |
@@ -238,7 +238,7 @@ Estos repositorios sirven como referencia de producto, arquitectura y experienci
 ### Estrategia para no empezar desde cero
 
 - Usar shadcn/ui para componentes base.
-- Usar Better Auth para autenticación.
+- Usar Auth.js con Google OAuth 2.0 para autenticación.
 - Usar Recharts para visualizaciones.
 - Usar una librería estable para lectura y validación de CSV.
 - Adoptar patrones del modelo de transacciones de Firefly III.
@@ -262,7 +262,7 @@ Estos repositorios sirven como referencia de producto, arquitectura y experienci
 
 **Fase 1 disponible como prototipo funcional.**
 
-- Acceso de demostración y workspace personal.
+- Inicio de sesión con Google OAuth 2.0 y workspace privado por usuario.
 - Cuentas bancarias, billeteras y efectivo con saldo inicial.
 - Registro de ingresos y gastos.
 - Categorías financieras.
@@ -270,8 +270,8 @@ Estos repositorios sirven como referencia de producto, arquitectura y experienci
 - Persistencia en PostgreSQL sobre Neon mediante API server-side.
 - Interfaz responsive y manifiesto PWA.
 
-La autenticación de esta fase sigue siendo de demostración. Antes de usar datos financieros reales
-se debe habilitar Better Auth y separar los workspaces por usuario.
+La autenticación usa Auth.js con sesiones JWT cifradas. La autorización de la API se hace con la
+sesión del usuario y cada workspace se identifica internamente por su cuenta Google.
 
 ### Ejecutar localmente
 
@@ -283,12 +283,12 @@ npm run db:generate
 npm run dev
 ```
 
-Configura `DATABASE_URL` usando `.env.example` antes de abrir `http://localhost:3000`. La pantalla
-de acceso incluye credenciales de demostración.
+Configura `DATABASE_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID` y `AUTH_GOOGLE_SECRET` usando `.env.example`
+antes de abrir `http://localhost:3000`.
 
 ### Base de datos
 
-La primera migración está en `drizzle/0000_optimal_black_bird.sql`. Para generar cambios futuros:
+Las migraciones están en la carpeta `drizzle/`. Para generar cambios futuros:
 
 ```bash
 npm run db:generate
@@ -298,7 +298,23 @@ npm run db:push
 Las variables requeridas son:
 
 - `DATABASE_URL`: conexión pooled de Neon, únicamente server-side.
-- `RUTASALDO_WORKSPACE_ID`: identificador del workspace demo.
+- `AUTH_SECRET`: secreto aleatorio de al menos 32 caracteres.
+- `AUTH_GOOGLE_ID`: Client ID de Google OAuth.
+- `AUTH_GOOGLE_SECRET`: Client Secret de Google OAuth.
+- `AUTH_URL`: URL base de la aplicación.
+
+### Configurar Google OAuth 2.0
+
+En Google Cloud Console crea un cliente OAuth de tipo **Web application** y agrega estos URI:
+
+```text
+http://localhost:3000/api/auth/callback/google
+https://ruta-saldo.vercel.app/api/auth/callback/google
+```
+
+Configura las credenciales como variables server-side en local y en Vercel. Auth.js usa los scopes
+`openid`, `profile` y `email`; esta integración autentica al usuario y no solicita acceso a bancos,
+Gmail ni Google Drive.
 
 ```bash
 npm run lint
