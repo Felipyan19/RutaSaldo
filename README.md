@@ -260,7 +260,35 @@ Estos repositorios sirven como referencia de producto, arquitectura y experienci
 
 ## Estado
 
-Proyecto en etapa de definición y construcción del MVP.
+**Fase 1 disponible como prototipo funcional.**
+
+- Acceso de demostración y workspace personal.
+- Cuentas bancarias, billeteras y efectivo con saldo inicial.
+- Registro de ingresos y gastos.
+- Categorías financieras.
+- Dashboard con saldos, totales y distribución de gastos.
+- Persistencia privada en el navegador.
+- Interfaz responsive y manifiesto PWA.
+
+La persistencia local permite validar los flujos sin configurar infraestructura. Antes de usar
+datos financieros reales se reemplazará por PostgreSQL y autenticación segura con Better Auth.
+
+### Ejecutar localmente
+
+Requiere Node.js 20 o superior.
+
+```bash
+npm install
+npm run dev
+```
+
+Abre `http://localhost:3000`. La pantalla de acceso incluye credenciales de demostración.
+
+```bash
+npm run lint
+npm test
+npm run build
+```
 
 ## Contribuciones
 
@@ -269,4 +297,3 @@ Las propuestas, discusiones y pull requests son bienvenidos. Antes de implementa
 ## Licencia
 
 La licencia del proyecto está por definir. Para un proyecto público que permita uso y contribuciones amplias, se puede considerar **Apache-2.0** o **MIT**. La elección debe hacerse antes de aceptar contribuciones externas.
-
