@@ -169,8 +169,11 @@ convertirse en un conjunto de pestañas controladas por un único componente.
 
 Las lecturas iniciales se hacen directamente desde el Server Component/layout; las mutaciones de la interfaz
 usan el endpoint autenticado `/api/finance`. Ese endpoint vuelve a validar la sesión, limita todas las consultas
-al `workspaceId` del usuario, valida el payload con Zod, ejecuta reemplazos dentro de una transacción y devuelve
-`Cache-Control: private, no-store` para evitar cachear información financiera privada.
+al `workspaceId` del usuario, valida el payload con Zod y devuelve `Cache-Control: private, no-store` para evitar
+cachear información financiera privada. El `PUT` conserva el reemplazo completo usado por el prototipo; las
+operaciones nuevas usan `POST`, `PATCH` y `DELETE?transactionId=...` para modificar movimientos de forma incremental
+dentro de una transacción de base de datos. Las transferencias se persisten como una relación y dos movimientos
+enlazados, por lo que no se cuentan como ingreso ni gasto.
 
 ## Modelo de dominio inicial
 

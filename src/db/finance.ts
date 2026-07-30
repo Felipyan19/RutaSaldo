@@ -68,6 +68,7 @@ export async function createTransaction(workspaceId: string, input: Transaction)
   const parsed = transactionInputSchema.parse(input);
   if (parsed.kind === "transfer") throw new Error("Las transferencias deben crearse con la operación transfer.");
   if (!parsed.categoryId) throw new Error("El movimiento necesita una categoría.");
+  if (parsed.transferId || parsed.transferSide) throw new Error("Solo una transferencia puede enlazar movimientos.");
   const categoryId = parsed.categoryId;
   const db = getDb();
   await db.transaction(async (tx) => {
@@ -97,6 +98,7 @@ export async function createTransfer(workspaceId: string, input: Transfer) {
 export async function updateTransaction(workspaceId: string, transactionId: string, input: Omit<Transaction, "id">) {
   const parsed = transactionInputSchema.parse({ ...input, id: transactionId });
   if (parsed.kind === "transfer" || !parsed.categoryId) throw new Error("Las transferencias no se editan como movimientos individuales.");
+  if (parsed.transferId || parsed.transferSide) throw new Error("Las transferencias no se editan como movimientos individuales.");
   const categoryId = parsed.categoryId;
   const db = getDb();
   await db.transaction(async (tx) => {
