@@ -1,10 +1,25 @@
-import { date, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { date, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const workspaces = pgTable("workspaces", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  provider: text("provider").notNull().default("google"),
+  providerAccountId: text("provider_account_id").notNull(),
+  email: text("email").notNull(),
+  name: text("name"),
+  image: text("image"),
+  workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  providerAccountUnique: uniqueIndex("users_provider_account_unique").on(table.provider, table.providerAccountId),
+  workspaceUnique: uniqueIndex("users_workspace_unique").on(table.workspaceId),
+}));
 
 export const accounts = pgTable("accounts", {
   id: text("id").primaryKey(),
