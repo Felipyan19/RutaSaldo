@@ -134,6 +134,14 @@ flowchart TB
 ```text
 src/
 ├── app/                 # Rutas, layouts y páginas
+│   ├── (auth)/          # Acceso público y registro
+│   ├── (dashboard)/     # Layout protegido por sesión
+│   │   ├── resumen/     # /resumen
+│   │   ├── cuentas/     # /cuentas
+│   │   ├── movimientos/ # /movimientos
+│   │   ├── categorias/  # /categorias
+│   │   └── configuracion/ # /configuracion
+│   └── api/             # Auth.js y API financiera
 ├── modules/
 │   ├── auth/            # Usuarios y sesiones
 │   ├── workspaces/      # Finanzas personales o compartidas
@@ -151,6 +159,18 @@ src/
 ├── db/                  # Esquema, migraciones y seeds
 └── lib/                 # Utilidades e integraciones
 ```
+
+### Arquitectura de rutas y seguridad
+
+Las áreas del producto viven en rutas independientes del App Router. El layout de `(dashboard)` valida la sesión
+con Auth.js, resuelve el workspace del usuario y carga el estado inicial desde el servidor antes de renderizar
+las páginas. La navegación usa `next/link`, por lo que cada sección tiene una URL estable y puede crecer sin
+convertirse en un conjunto de pestañas controladas por un único componente.
+
+Las lecturas iniciales se hacen directamente desde el Server Component/layout; las mutaciones de la interfaz
+usan el endpoint autenticado `/api/finance`. Ese endpoint vuelve a validar la sesión, limita todas las consultas
+al `workspaceId` del usuario, valida el payload con Zod, ejecuta reemplazos dentro de una transacción y devuelve
+`Cache-Control: private, no-store` para evitar cachear información financiera privada.
 
 ## Modelo de dominio inicial
 

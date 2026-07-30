@@ -43,8 +43,9 @@ export function TransactionForm({
               type="button"
               key={value}
               onClick={() => setKind(value)}
+              aria-pressed={kind === value}
               className={`h-10 rounded-lg text-sm font-semibold transition ${
-                kind === value ? "bg-white text-[#1b2b23] shadow-sm" : "text-[#748078]"
+                kind === value ? "bg-white text-[#1b2b23] shadow-sm" : "text-[#5e6d63]"
               }`}
             >
               {value === "expense" ? "Gasto" : "Ingreso"}
@@ -79,7 +80,7 @@ export function TransactionForm({
           Fecha
           <input name="date" required type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
         </label>
-        <button className="h-12 w-full rounded-xl bg-[#17231e] text-sm font-semibold text-white hover:bg-[#26372f]">
+        <button type="submit" className="h-12 w-full rounded-xl bg-[#17231e] text-sm font-semibold text-white hover:bg-[#26372f]">
           Guardar movimiento
         </button>
       </form>
@@ -129,7 +130,7 @@ export function AccountForm({
           Saldo inicial
           <input name="openingBalance" required min="0" type="number" placeholder="$ 0" className={inputClass} />
         </label>
-        <button className="h-12 w-full rounded-xl bg-[#17231e] text-sm font-semibold text-white hover:bg-[#26372f]">
+        <button type="submit" className="h-12 w-full rounded-xl bg-[#17231e] text-sm font-semibold text-white hover:bg-[#26372f]">
           Crear cuenta
         </button>
       </form>
