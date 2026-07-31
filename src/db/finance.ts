@@ -5,6 +5,13 @@ import { accounts, categories, transactions, transfers, workspaces } from "./sch
 import { FinanceState, Transaction, Transfer } from "@/lib/finance";
 import { accountInputSchema, transactionInputSchema, transferInputSchema } from "@/lib/finance-schema";
 
+export class FinanceInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FinanceInputError";
+  }
+}
+
 export async function readFinanceState(workspaceId: string): Promise<FinanceState> {
   const db = getDb();
   const [workspace] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
@@ -72,20 +79,20 @@ export async function createAccount(workspaceId: string, input: FinanceState["ac
 async function assertWorkspaceAccounts(tx: DbTransaction, workspaceId: string, accountIds: string[]) {
   const uniqueIds = [...new Set(accountIds)];
   const rows = await tx.select({ id: accounts.id }).from(accounts).where(and(eq(accounts.workspaceId, workspaceId), inArray(accounts.id, uniqueIds)));
-  if (rows.length !== uniqueIds.length) throw new Error("Una o más cuentas no pertenecen al workspace.");
+  if (rows.length !== uniqueIds.length) throw new FinanceInputError("Una o más cuentas no pertenecen al workspace.");
 }
 
 export async function createTransaction(workspaceId: string, input: Transaction) {
   const parsed = transactionInputSchema.parse(input);
-  if (parsed.kind === "transfer") throw new Error("Las transferencias deben crearse con la operación transfer.");
-  if (!parsed.categoryId) throw new Error("El movimiento necesita una categoría.");
-  if (parsed.transferId || parsed.transferSide) throw new Error("Solo una transferencia puede enlazar movimientos.");
+  if (parsed.kind === "transfer") throw new FinanceInputError("Las transferencias deben crearse con la operación transfer.");
+  if (!parsed.categoryId) throw new FinanceInputError("El movimiento necesita una categoría.");
+  if (parsed.transferId || parsed.transferSide) throw new FinanceInputError("Solo una transferencia puede enlazar movimientos.");
   const categoryId = parsed.categoryId;
   const db = getDb();
   await db.transaction(async (tx) => {
     await assertWorkspaceAccounts(tx, workspaceId, [parsed.accountId]);
     const category = await tx.select({ id: categories.id }).from(categories).where(and(eq(categories.id, categoryId), eq(categories.workspaceId, workspaceId)));
-    if (!category.length) throw new Error("La categoría no pertenece al workspace.");
+    if (!category.length) throw new FinanceInputError("La categoría no pertenece al workspace.");
     await tx.insert(transactions).values({ ...parsed, categoryId, workspaceId, transferId: null, transferSide: null });
   });
   return readFinanceState(workspaceId);
@@ -93,7 +100,7 @@ export async function createTransaction(workspaceId: string, input: Transaction)
 
 export async function createTransfer(workspaceId: string, input: Transfer) {
   const parsed = transferInputSchema.parse(input);
-  if (parsed.fromAccountId === parsed.toAccountId) throw new Error("Una transferencia necesita cuentas distintas.");
+  if (parsed.fromAccountId === parsed.toAccountId) throw new FinanceInputError("Una transferencia necesita cuentas distintas.");
   const db = getDb();
   await db.transaction(async (tx) => {
     await assertWorkspaceAccounts(tx, workspaceId, [parsed.fromAccountId, parsed.toAccountId]);
@@ -108,16 +115,16 @@ export async function createTransfer(workspaceId: string, input: Transfer) {
 
 export async function updateTransaction(workspaceId: string, transactionId: string, input: Omit<Transaction, "id">) {
   const parsed = transactionInputSchema.parse({ ...input, id: transactionId });
-  if (parsed.kind === "transfer" || !parsed.categoryId) throw new Error("Las transferencias no se editan como movimientos individuales.");
-  if (parsed.transferId || parsed.transferSide) throw new Error("Las transferencias no se editan como movimientos individuales.");
+  if (parsed.kind === "transfer" || !parsed.categoryId) throw new FinanceInputError("Las transferencias no se editan como movimientos individuales.");
+  if (parsed.transferId || parsed.transferSide) throw new FinanceInputError("Las transferencias no se editan como movimientos individuales.");
   const categoryId = parsed.categoryId;
   const db = getDb();
   await db.transaction(async (tx) => {
     await assertWorkspaceAccounts(tx, workspaceId, [parsed.accountId]);
     const category = await tx.select({ id: categories.id }).from(categories).where(and(eq(categories.id, categoryId), eq(categories.workspaceId, workspaceId)));
-    if (!category.length) throw new Error("La categoría no pertenece al workspace.");
+    if (!category.length) throw new FinanceInputError("La categoría no pertenece al workspace.");
     const [existing] = await tx.select({ id: transactions.id, transferId: transactions.transferId, kind: transactions.kind }).from(transactions).where(and(eq(transactions.id, transactionId), eq(transactions.workspaceId, workspaceId)));
-    if (!existing || existing.transferId || !["income", "expense"].includes(existing.kind)) throw new Error("No se pudo actualizar el movimiento.");
+    if (!existing || existing.transferId || !["income", "expense"].includes(existing.kind)) throw new FinanceInputError("No se pudo actualizar el movimiento.");
     await tx.update(transactions).set({ accountId: parsed.accountId, categoryId, kind: parsed.kind, amount: parsed.amount, description: parsed.description, date: parsed.date }).where(and(eq(transactions.id, transactionId), eq(transactions.workspaceId, workspaceId)));
   });
   return readFinanceState(workspaceId);
@@ -127,7 +134,7 @@ export async function deleteTransaction(workspaceId: string, transactionId: stri
   const db = getDb();
   await db.transaction(async (tx) => {
     const [transaction] = await tx.select({ transferId: transactions.transferId }).from(transactions).where(and(eq(transactions.id, transactionId), eq(transactions.workspaceId, workspaceId)));
-    if (!transaction) throw new Error("Movimiento no encontrado.");
+    if (!transaction) throw new FinanceInputError("Movimiento no encontrado.");
     if (transaction.transferId) {
       await tx.delete(transfers).where(and(eq(transfers.id, transaction.transferId), eq(transfers.workspaceId, workspaceId)));
     } else {
