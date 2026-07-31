@@ -1,5 +1,6 @@
-import { AlertTriangle, BellRing, CalendarClock, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowRightLeft, ArrowUpCircle, BellRing, CalendarClock, CheckCircle2, Trash2, WalletCards, type LucideIcon } from "lucide-react";
 import { creditCardDebt, formatCOP, type FinanceState } from "@/lib/finance";
+import { FINANCE_ACTION_HISTORY_KEY } from "@/components/finance/finance-provider";
 
 export type FinanceNotification = {
   id: string;
@@ -9,6 +10,41 @@ export type FinanceNotification = {
   severity: "info" | "warning" | "urgent";
   icon: LucideIcon;
 };
+
+type StoredAction = {
+  id: string;
+  title: string;
+  description: string;
+  href: string;
+  createdAt: string;
+  action: "account" | "income" | "expense" | "transfer" | "clear";
+};
+
+const actionIcons: Record<StoredAction["action"], LucideIcon> = {
+  account: WalletCards,
+  income: ArrowUpCircle,
+  expense: ArrowDownCircle,
+  transfer: ArrowRightLeft,
+  clear: Trash2,
+};
+
+function readActionHistory(): FinanceNotification[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = window.localStorage.getItem(FINANCE_ACTION_HISTORY_KEY);
+    const actions = stored ? JSON.parse(stored) as StoredAction[] : [];
+    return actions.slice(0, 20).map((action) => ({
+      id: `history:${action.id}`,
+      title: action.title,
+      description: action.description,
+      href: action.href,
+      severity: "info" as const,
+      icon: actionIcons[action.action] ?? CheckCircle2,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 function nextMonthlyDate(day: number, now: Date) {
   const safeDay = Math.min(Math.max(day, 1), 28);
@@ -25,7 +61,7 @@ function daysBetween(from: Date, to: Date) {
 }
 
 export function buildFinanceNotifications(state: FinanceState, now = new Date()): FinanceNotification[] {
-  const notifications: FinanceNotification[] = [];
+  const alerts: FinanceNotification[] = [];
 
   for (const account of state.accounts) {
     if (account.kind !== "credit_card" || !account.creditCardDetails) continue;
@@ -39,7 +75,7 @@ export function buildFinanceNotifications(state: FinanceState, now = new Date())
 
     if (debt > 0 && daysUntilDue <= 7) {
       const dueLabel = daysUntilDue === 0 ? "vence hoy" : daysUntilDue === 1 ? "vence mañana" : `vence en ${daysUntilDue} días`;
-      notifications.push({
+      alerts.push({
         id: `card-due:${account.id}:${period}`,
         title: `${account.institution} ${dueLabel}`,
         description: `Tienes una deuda actual de ${formatCOP(debt)} en ${account.name}.`,
@@ -50,7 +86,7 @@ export function buildFinanceNotifications(state: FinanceState, now = new Date())
     }
 
     if (debt > 0 && utilization >= 0.8) {
-      notifications.push({
+      alerts.push({
         id: `card-limit:${account.id}:${Math.floor(utilization * 10)}`,
         title: "Cupo de tarjeta casi agotado",
         description: `${account.institution} está usando ${Math.round(utilization * 100)}% de su cupo.`,
@@ -62,7 +98,7 @@ export function buildFinanceNotifications(state: FinanceState, now = new Date())
   }
 
   if (state.accounts.length > 0 && state.transactions.length === 0) {
-    notifications.push({
+    alerts.push({
       id: "first-movement",
       title: "Registra tu primer movimiento",
       description: "Agrega un ingreso o gasto para que el resumen refleje tu situación real.",
@@ -72,8 +108,10 @@ export function buildFinanceNotifications(state: FinanceState, now = new Date())
     });
   }
 
-  return notifications.sort((a, b) => {
+  alerts.sort((a, b) => {
     const weight = { urgent: 0, warning: 1, info: 2 } as const;
     return weight[a.severity] - weight[b.severity];
   });
+
+  return [...alerts, ...readActionHistory()];
 }
