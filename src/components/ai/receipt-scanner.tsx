@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Camera, Cpu, FileText, RotateCcw, ScanLine, Sparkles, Upload, X } from "lucide-react";
+import { AlertTriangle, Camera, Cpu, FileText, RotateCcw, ScanLine, Upload, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import type { Account, Category, Transaction } from "@/lib/finance";
 import { formatCOP } from "@/lib/finance";
@@ -23,24 +23,19 @@ function findCategory(categories: Category[], suggested: string | null) {
 }
 
 function AiProcessing() {
-  const steps = ["Escaneando documento", "Reconociendo datos", "Preparando borrador"];
   return (
-    <div className="relative grid min-h-72 place-items-center overflow-hidden rounded-2xl border border-[#cfd9d1] bg-[radial-gradient(circle_at_top,#edf8d9_0%,#f8fbf6_38%,#fff_75%)] p-7 text-center">
-      <div aria-hidden="true" className="absolute inset-0 opacity-50 [background-image:linear-gradient(rgba(79,108,92,.07)_1px,transparent_1px),linear-gradient(90deg,rgba(79,108,92,.07)_1px,transparent_1px)] [background-size:24px_24px]" />
-      <div aria-hidden="true" className="ai-scan absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-transparent via-[#b7f34b]/30 to-transparent blur-sm" />
-      <div className="relative">
-        <div className="relative mx-auto grid h-24 w-24 place-items-center">
-          <span className="ai-orbit absolute inset-0 rounded-full border border-[#7e9b88]/40" />
-          <span className="ai-orbit-reverse absolute inset-2 rounded-full border border-dashed border-[#b7f34b]" />
-          <span className="ai-pulse absolute inset-5 rounded-2xl bg-[#17231e]/10" />
-          <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-[#17231e] text-[#d9ff8d] shadow-[0_14px_35px_rgba(23,35,30,.28)]"><Cpu size={27} /></span>
-          <Sparkles className="ai-sparkle absolute -right-1 top-2 text-[#78a22f]" size={18} />
+    <div className="grid min-h-72 place-items-center rounded-2xl border border-[#dce1da] bg-white p-8 text-center">
+      <div>
+        <div className="relative mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-[#dce1da] bg-[#f3f6f2] text-[#4f6c5c]">
+          <Cpu className="ai-soft-pulse" size={25} />
+          <span aria-hidden="true" className="ai-status-dot absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-[#8baa78]" />
         </div>
-        <p className="mt-5 text-base font-semibold text-[#26372e]">La IA está leyendo tu factura</p>
-        <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-[#68776e]">Detectando comercio, fecha, total, impuestos y categoría.</p>
-        <div className="mx-auto mt-5 flex max-w-sm flex-wrap justify-center gap-2">
-          {steps.map((step, index) => <span key={step} className="ai-step rounded-full border border-[#d9e2da] bg-white/90 px-3 py-1.5 text-[10px] font-semibold text-[#52665a] shadow-sm" style={{ animationDelay: `${index * 420}ms` }}>{step}</span>)}
+        <p className="mt-4 text-sm font-semibold text-[#26372e]">Analizando factura con IA</p>
+        <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-[#68776e]">Estamos leyendo comercio, fecha, total y categoría.</p>
+        <div className="mx-auto mt-5 h-1.5 w-48 overflow-hidden rounded-full bg-[#edf0eb]">
+          <div className="ai-progress h-full w-2/5 rounded-full bg-[#819b8a]" />
         </div>
+        <p className="mt-3 text-[10px] font-medium uppercase tracking-[.1em] text-[#819087]">Preparando borrador</p>
         <span className="sr-only" role="status">Analizando factura con inteligencia artificial</span>
       </div>
     </div>
@@ -87,14 +82,12 @@ export function ReceiptScanner({ accounts, categories, onSave, onClose }: { acco
   return (
     <div className="fixed inset-0 z-50 grid place-items-end bg-black/45 p-0 sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <style>{`
-        @keyframes aiScan{0%{transform:translateY(-110%);opacity:0}18%,82%{opacity:1}100%{transform:translateY(360%);opacity:0}}
-        @keyframes aiOrbit{to{transform:rotate(360deg)}}
-        @keyframes aiPulse{0%,100%{transform:scale(.88);opacity:.45}50%{transform:scale(1.12);opacity:.9}}
-        @keyframes aiSparkle{0%,100%{transform:scale(.75) rotate(-8deg);opacity:.35}50%{transform:scale(1.15) rotate(8deg);opacity:1}}
-        @keyframes aiStep{0%,100%{opacity:.45;transform:translateY(0)}50%{opacity:1;transform:translateY(-2px);border-color:#b7f34b}}
-        @keyframes aiGlow{0%,100%{box-shadow:0 0 0 0 rgba(183,243,75,.08)}50%{box-shadow:0 0 0 10px rgba(183,243,75,.08)}}
-        .ai-scan{animation:aiScan 2.4s ease-in-out infinite}.ai-orbit{animation:aiOrbit 4.5s linear infinite}.ai-orbit-reverse{animation:aiOrbit 3.2s linear infinite reverse}.ai-pulse{animation:aiPulse 1.8s ease-in-out infinite}.ai-sparkle{animation:aiSparkle 1.4s ease-in-out infinite}.ai-step{animation:aiStep 1.7s ease-in-out infinite}.ai-glow{animation:aiGlow 2.8s ease-in-out infinite}
-        @media(prefers-reduced-motion:reduce){.ai-scan,.ai-orbit,.ai-orbit-reverse,.ai-pulse,.ai-sparkle,.ai-step,.ai-glow{animation:none!important}}
+        @keyframes aiScan{0%{transform:translateY(-110%);opacity:0}20%,80%{opacity:.8}100%{transform:translateY(360%);opacity:0}}
+        @keyframes aiSoftPulse{0%,100%{opacity:.65;transform:scale(.96)}50%{opacity:1;transform:scale(1)}}
+        @keyframes aiProgress{0%{transform:translateX(-120%)}100%{transform:translateX(350%)}}
+        @keyframes aiStatus{0%,100%{opacity:.45}50%{opacity:1}}
+        .ai-scan{animation:aiScan 2.8s ease-in-out infinite}.ai-soft-pulse{animation:aiSoftPulse 1.8s ease-in-out infinite}.ai-progress{animation:aiProgress 1.9s ease-in-out infinite}.ai-status-dot{animation:aiStatus 1.6s ease-in-out infinite}
+        @media(prefers-reduced-motion:reduce){.ai-scan,.ai-soft-pulse,.ai-progress,.ai-status-dot{animation:none!important}}
       `}</style>
       <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-[#f8f9f5] shadow-2xl sm:max-w-3xl sm:rounded-3xl">
         <header className="flex items-start justify-between border-b border-[#e2e6df] bg-white px-5 py-4 sm:px-6">
@@ -103,20 +96,20 @@ export function ReceiptScanner({ accounts, categories, onSave, onClose }: { acco
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
           {!file ? (
-            <div className="ai-glow relative overflow-hidden rounded-3xl border-2 border-dashed border-[#bfcdbf] bg-[radial-gradient(circle_at_top,#f0f9df_0%,#fff_56%)] p-8 text-center sm:p-12">
-              <span className="relative mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#17231e] text-[#d9ff8d] shadow-[0_14px_35px_rgba(23,35,30,.22)]"><Camera size={27}/><Sparkles className="ai-sparkle absolute -right-2 -top-2 text-[#78a22f]" size={19}/></span>
-              <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-[#dce8cf] bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#56723d]"><Cpu size={13}/> Lectura inteligente</div>
+            <div className="rounded-3xl border-2 border-dashed border-[#cbd4cc] bg-white p-8 text-center sm:p-12">
+              <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#eef3ef] text-[#4f6c5c]"><Camera size={28}/></span>
+              <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-[#dce1da] bg-[#f8f9f5] px-2.5 py-1 text-[10px] font-semibold text-[#5e6d63]"><Cpu size={12}/> Asistido por IA</div>
               <h3 className="mt-3 text-lg font-semibold">Toma una foto o sube un archivo</h3><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#68776e]">La IA leerá los datos y preparará un movimiento editable para que lo confirmes.</p>
               <input ref={inputRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={(event)=>chooseFile(event.target.files?.[0]??null)}/>
-              <button type="button" onClick={()=>inputRef.current?.click()} className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[#17231e] px-5 text-sm font-semibold text-white shadow-lg shadow-[#17231e]/15"><Upload size={17}/> Seleccionar factura</button><p className="mt-3 text-[10px] text-[#819087]">JPG, PNG, WEBP o PDF · máximo 8 MB</p>
+              <button type="button" onClick={()=>inputRef.current?.click()} className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[#17231e] px-5 text-sm font-semibold text-white"><Upload size={17}/> Seleccionar factura</button><p className="mt-3 text-[10px] text-[#819087]">JPG, PNG, WEBP o PDF · máximo 8 MB</p>
             </div>
           ) : (
             <div className="grid gap-5 lg:grid-cols-[15rem_1fr]">
               <aside className="space-y-3">
-                <div className={`relative overflow-hidden rounded-2xl border bg-white ${loading?"border-[#a9bd9f] shadow-[0_0_0_3px_rgba(183,243,75,.16)]":"border-[#dce1da]"}`}>
+                <div className={`relative overflow-hidden rounded-2xl border bg-white ${loading?"border-[#b8c5bb]":"border-[#dce1da]"}`}>
                   {previewUrl?<img src={previewUrl} alt="Vista previa de la factura" className="max-h-72 w-full object-contain"/>:<div className="grid min-h-52 place-items-center p-5 text-center"><div><FileText className="mx-auto text-[#4f6c5c]" size={34}/><p className="mt-3 break-all text-xs font-medium">{file.name}</p></div></div>}
-                  {loading&&<div aria-hidden="true" className="ai-scan pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-transparent via-[#b7f34b]/45 to-transparent"/>}
-                  {loading&&<span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#17231e]/90 px-3 py-1 text-[9px] font-bold uppercase tracking-[.12em] text-[#d9ff8d]">Escaneando</span>}
+                  {loading&&<div aria-hidden="true" className="ai-scan pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-transparent via-[#819b8a]/20 to-transparent"/>}
+                  {loading&&<span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/70 bg-white/90 px-3 py-1 text-[9px] font-semibold uppercase tracking-[.1em] text-[#52665a] shadow-sm">Analizando</span>}
                 </div>
                 <button type="button" disabled={loading} onClick={()=>inputRef.current?.click()} className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#dce1da] bg-white text-sm font-semibold disabled:opacity-45"><RotateCcw size={16}/> Cambiar archivo</button>
                 <input ref={inputRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={(event)=>chooseFile(event.target.files?.[0]??null)}/>
