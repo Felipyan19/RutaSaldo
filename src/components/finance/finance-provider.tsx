@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import { clearFinanceState, createFinanceAccount, createFinanceTransaction, createFinanceTransfer, saveFinanceState } from "@/lib/storage";
 import { Account, emptyFinanceState, FinanceState, Transaction, Transfer } from "@/lib/finance";
@@ -45,6 +45,21 @@ export function FinanceProvider({ initialState, children }: { initialState: Fina
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    function dismissOpenPopover(event: PointerEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      const openTrigger = document.querySelector<HTMLElement>('[aria-haspopup="menu"][aria-expanded="true"]');
+      const openMenu = document.querySelector<HTMLElement>('[role="menu"]');
+      if (!openTrigger || !openMenu) return;
+      if (openTrigger.contains(target) || openMenu.contains(target)) return;
+      openTrigger.click();
+    }
+
+    document.addEventListener("pointerdown", dismissOpenPopover, true);
+    return () => document.removeEventListener("pointerdown", dismissOpenPopover, true);
+  }, []);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
