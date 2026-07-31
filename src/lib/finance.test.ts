@@ -25,4 +25,23 @@ describe("financial calculations", () => {
     expect(emptyFinanceState.transactions).toHaveLength(0);
     expect(totals(emptyFinanceState)).toEqual({ income: 0, expenses: 0, balance: 0 });
   });
+
+  it("moves money between accounts without changing income or expenses", () => {
+    const state = {
+      ...emptyFinanceState,
+      accounts: [
+        { id: "source", name: "Origen", institution: "Banco A", kind: "bank" as const, color: "#123456", openingBalance: 1_000_000 },
+        { id: "destination", name: "Destino", institution: "Banco B", kind: "bank" as const, color: "#654321", openingBalance: 0 },
+      ],
+      transfers: [{ id: "transfer-1", fromAccountId: "source", toAccountId: "destination", amount: 400_000, description: "Ahorro", date: "2026-01-15" }],
+      transactions: [
+        { id: "transfer-1:out", accountId: "source", categoryId: null, kind: "transfer" as const, amount: 400_000, description: "Ahorro", date: "2026-01-15", transferId: "transfer-1", transferSide: "outgoing" as const },
+        { id: "transfer-1:in", accountId: "destination", categoryId: null, kind: "transfer" as const, amount: 400_000, description: "Ahorro", date: "2026-01-15", transferId: "transfer-1", transferSide: "incoming" as const },
+      ],
+    };
+
+    expect(accountBalance(state.accounts[0], state.transactions)).toBe(600_000);
+    expect(accountBalance(state.accounts[1], state.transactions)).toBe(400_000);
+    expect(totals(state)).toEqual({ income: 0, expenses: 0, balance: 1_000_000 });
+  });
 });

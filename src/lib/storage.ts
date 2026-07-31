@@ -1,4 +1,8 @@
-import { FinanceState } from "./finance";
+import { Account, FinanceState } from "./finance";
+
+type AccountMutation = { type: "account"; account: Account };
+type TransactionMutation = { type: "transaction"; transaction: FinanceState["transactions"][number] };
+type TransferMutation = { type: "transfer"; transfer: FinanceState["transfers"][number] };
 
 export async function loadFinanceState(): Promise<FinanceState> {
   const response = await fetch("/api/finance", { cache: "no-store" });
@@ -19,5 +23,38 @@ export async function saveFinanceState(state: FinanceState): Promise<FinanceStat
 export async function clearFinanceState(): Promise<FinanceState> {
   const response = await fetch("/api/finance", { method: "DELETE" });
   if (!response.ok) throw new Error("No se pudieron limpiar los datos financieros");
+  return response.json() as Promise<FinanceState>;
+}
+
+async function sendFinanceMutation(body: AccountMutation | TransactionMutation | TransferMutation, method = "POST", transactionId?: string) {
+  const response = await fetch("/api/finance", {
+    method,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(transactionId ? { ...body, transactionId } : body),
+  });
+  if (!response.ok) throw new Error("No se pudo aplicar el cambio financiero");
+  return response.json() as Promise<FinanceState>;
+}
+
+export function createFinanceAccount(account: Account) {
+  return sendFinanceMutation({ type: "account", account });
+}
+
+export function createFinanceTransaction(transaction: FinanceState["transactions"][number]) {
+  return sendFinanceMutation({ type: "transaction", transaction });
+}
+
+export function createFinanceTransfer(transfer: FinanceState["transfers"][number]) {
+  return sendFinanceMutation({ type: "transfer", transfer });
+}
+
+export function updateFinanceTransaction(transaction: FinanceState["transactions"][number]) {
+  const { id, ...payload } = transaction;
+  return sendFinanceMutation({ type: "transaction", transaction: { id, ...payload } }, "PATCH", id);
+}
+
+export async function deleteFinanceTransaction(transactionId: string) {
+  const response = await fetch(`/api/finance?transactionId=${encodeURIComponent(transactionId)}`, { method: "DELETE" });
+  if (!response.ok) throw new Error("No se pudo eliminar el movimiento");
   return response.json() as Promise<FinanceState>;
 }

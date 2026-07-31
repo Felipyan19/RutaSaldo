@@ -1,14 +1,16 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { clearFinanceState, saveFinanceState } from "@/lib/storage";
-import { emptyFinanceState, FinanceState } from "@/lib/finance";
+import { clearFinanceState, createFinanceAccount, createFinanceTransaction, saveFinanceState } from "@/lib/storage";
+import { Account, emptyFinanceState, FinanceState, Transaction } from "@/lib/finance";
 
 type FinanceContextValue = {
   state: FinanceState;
   error: string | null;
   saving: boolean;
   updateState: (next: FinanceState) => Promise<void>;
+  createAccount: (account: Account) => Promise<void>;
+  createTransaction: (transaction: Transaction) => Promise<void>;
   clearState: () => Promise<void>;
 };
 
@@ -44,7 +46,31 @@ export function FinanceProvider({ initialState, children }: { initialState: Fina
     }
   }, []);
 
-  const value = useMemo(() => ({ state, error, saving, updateState, clearState }), [state, error, saving, updateState, clearState]);
+  const createAccountMutation = useCallback(async (account: Account) => {
+    setSaving(true);
+    try {
+      setState(await createFinanceAccount(account));
+      setError(null);
+    } catch {
+      setError("No se pudo guardar la cuenta en Neon.");
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const createTransactionMutation = useCallback(async (transaction: Transaction) => {
+    setSaving(true);
+    try {
+      setState(await createFinanceTransaction(transaction));
+      setError(null);
+    } catch {
+      setError("No se pudo guardar el movimiento en Neon.");
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const value = useMemo(() => ({ state, error, saving, updateState, createAccount: createAccountMutation, createTransaction: createTransactionMutation, clearState }), [state, error, saving, updateState, createAccountMutation, createTransactionMutation, clearState]);
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
 }
 
