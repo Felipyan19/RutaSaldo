@@ -21,11 +21,24 @@ export async function seedWorkspace(db: ReturnType<typeof import("./index").getD
 
 export function stateToRows(state: FinanceState, workspaceId: string) {
   return {
-    accounts: state.accounts.map((account) => ({
+    accounts: state.accounts.map(({ creditCardDetails: _details, ...account }) => ({
       ...account,
       workspaceId,
       currency: "COP",
     })),
+    creditCardDetails: state.accounts.flatMap((account) => {
+      const details = account.creditCardDetails;
+      if (account.kind !== "credit_card" || !details) return [];
+      return [{
+        accountId: account.id,
+        workspaceId,
+        creditLimit: details.creditLimit,
+        statementDay: details.statementDay,
+        paymentDueDay: details.paymentDueDay,
+        lastFourDigits: details.lastFourDigits,
+        interestRateBasisPoints: Math.round(details.interestRate * 100),
+      }];
+    }),
     categories: state.categories.map((category) => ({ ...category, workspaceId })),
     transfers: state.transfers.map((transfer) => ({ ...transfer, workspaceId })),
     transactions: state.transactions.map((transaction) => ({ ...transaction, workspaceId })),
