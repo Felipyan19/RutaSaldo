@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowRightLeft, Bell, CheckCheck, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Menu, Plus, Settings, Tags, WalletCards, X } from "lucide-react";
+import { ArrowRightLeft, Bell, CheckCheck, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Menu, Plus, Settings, Tags, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { logOut } from "@/app/actions";
 import { Account, Transaction, Transfer } from "@/lib/finance";
@@ -96,9 +96,19 @@ export function DashboardShell({ user, children }: { user: User; children: React
         <Sidebar workspaceName={state.workspaceName} user={user} pathname={pathname} />
       </aside>
       {mobileMenu && (
-        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden">
-          <aside role="dialog" aria-modal="true" aria-label="Menú de navegación" className="flex h-full w-72 flex-col bg-[#17231e] p-5 text-white">
-            <button type="button" onClick={() => setMobileMenu(false)} className="absolute right-4 top-4 p-2" aria-label="Cerrar menú"><X aria-hidden="true" /></button>
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button
+            type="button"
+            aria-label="Cerrar menú de navegación"
+            onClick={() => setMobileMenu(false)}
+            className="absolute inset-0 bg-black/40"
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menú de navegación"
+            className="relative flex h-full w-[min(20rem,84vw)] flex-col bg-[#17231e] p-5 text-white shadow-2xl"
+          >
             <Sidebar workspaceName={state.workspaceName} user={user} pathname={pathname} onNavigate={() => setMobileMenu(false)} />
           </aside>
         </div>
@@ -132,44 +142,57 @@ export function DashboardShell({ user, children }: { user: User; children: React
                 )}
               </button>
               {notificationsOpen && (
-                <section role="dialog" aria-label="Centro de notificaciones" className="absolute right-0 top-12 z-30 w-[min(22rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-[#dce1da] bg-white shadow-[0_18px_50px_rgba(23,35,30,.16)]">
-                  <div className="flex items-center justify-between border-b border-[#edf0eb] px-4 py-3">
-                    <div>
-                      <h2 className="text-sm font-semibold">Notificaciones</h2>
-                      <p className="mt-0.5 text-xs text-[#6b786f]">Alertas basadas en tus datos financieros</p>
-                    </div>
-                    {unreadNotifications.length > 0 && (
-                      <button type="button" onClick={() => saveReadNotifications([...readNotificationIds, ...notifications.map((item) => item.id)])} className="flex items-center gap-1.5 text-xs font-semibold text-[#4f6c5c]">
-                        <CheckCheck size={15} aria-hidden="true" /> Marcar leídas
-                      </button>
-                    )}
-                  </div>
-                  <div className="max-h-[26rem] overflow-y-auto p-2">
-                    {notifications.length === 0 ? (
-                      <div className="px-5 py-9 text-center">
-                        <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[#eef3ef] text-[#4f6c5c]"><Bell size={19} aria-hidden="true" /></span>
-                        <p className="mt-3 text-sm font-semibold">Todo está al día</p>
-                        <p className="mt-1 text-xs leading-5 text-[#6b786f]">Aquí aparecerán vencimientos y alertas importantes.</p>
+                <>
+                  <button
+                    type="button"
+                    aria-label="Cerrar notificaciones"
+                    onClick={() => setNotificationsOpen(false)}
+                    className="fixed inset-0 z-20 cursor-default bg-black/10 sm:bg-transparent"
+                  />
+                  <section
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Centro de notificaciones"
+                    className="fixed inset-x-3 top-24 z-30 flex max-h-[calc(100dvh-7rem)] flex-col overflow-hidden rounded-2xl border border-[#dce1da] bg-white shadow-[0_18px_50px_rgba(23,35,30,.20)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:max-h-[32rem] sm:w-[22rem]"
+                  >
+                    <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#edf0eb] px-4 py-3">
+                      <div className="min-w-0">
+                        <h2 className="text-sm font-semibold">Notificaciones</h2>
+                        <p className="mt-0.5 text-xs leading-5 text-[#6b786f]">Alertas basadas en tus datos financieros</p>
                       </div>
-                    ) : notifications.map((notification) => {
-                      const Icon = notification.icon;
-                      const unread = !readNotificationIds.includes(notification.id);
-                      const tone = notification.severity === "urgent" ? "bg-[#fff0ec] text-[#b24e3d]" : notification.severity === "warning" ? "bg-[#fff8e8] text-[#9a6a22]" : "bg-[#eef3ef] text-[#4f6c5c]";
-                      return (
-                        <button key={notification.id} type="button" onClick={() => openNotification(notification.id, notification.href)} className={`flex w-full gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-[#f4f6f2] ${unread ? "bg-[#fafbf8]" : "opacity-70"}`}>
-                          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tone}`}><Icon size={18} aria-hidden="true" /></span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-start justify-between gap-2">
-                              <span className="text-sm font-semibold">{notification.title}</span>
-                              {unread && <span aria-label="Sin leer" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#e76a58]" />}
-                            </span>
-                            <span className="mt-1 block text-xs leading-5 text-[#6b786f]">{notification.description}</span>
-                          </span>
+                      {unreadNotifications.length > 0 && (
+                        <button type="button" onClick={() => saveReadNotifications([...readNotificationIds, ...notifications.map((item) => item.id)])} className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-[#4f6c5c]">
+                          <CheckCheck size={15} aria-hidden="true" /> <span className="hidden min-[390px]:inline">Marcar leídas</span>
                         </button>
-                      );
-                    })}
-                  </div>
-                </section>
+                      )}
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+                      {notifications.length === 0 ? (
+                        <div className="px-5 py-9 text-center">
+                          <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[#eef3ef] text-[#4f6c5c]"><Bell size={19} aria-hidden="true" /></span>
+                          <p className="mt-3 text-sm font-semibold">Todo está al día</p>
+                          <p className="mt-1 text-xs leading-5 text-[#6b786f]">Aquí aparecerán vencimientos y alertas importantes.</p>
+                        </div>
+                      ) : notifications.map((notification) => {
+                        const Icon = notification.icon;
+                        const unread = !readNotificationIds.includes(notification.id);
+                        const tone = notification.severity === "urgent" ? "bg-[#fff0ec] text-[#b24e3d]" : notification.severity === "warning" ? "bg-[#fff8e8] text-[#9a6a22]" : "bg-[#eef3ef] text-[#4f6c5c]";
+                        return (
+                          <button key={notification.id} type="button" onClick={() => openNotification(notification.id, notification.href)} className={`flex w-full gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-[#f4f6f2] ${unread ? "bg-[#fafbf8]" : "opacity-70"}`}>
+                            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tone}`}><Icon size={18} aria-hidden="true" /></span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-start justify-between gap-2">
+                                <span className="text-sm font-semibold">{notification.title}</span>
+                                {unread && <span aria-label="Sin leer" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#e76a58]" />}
+                              </span>
+                              <span className="mt-1 block text-xs leading-5 text-[#6b786f]">{notification.description}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </>
               )}
             </div>
             <div className="relative">
