@@ -3,10 +3,10 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { stateToRows } from "@/db/seed";
-import { createTransaction, createTransfer, deleteTransaction, readFinanceState, updateTransaction } from "@/db/finance";
+import { createAccount, createTransaction, createTransfer, deleteTransaction, readFinanceState, updateTransaction } from "@/db/finance";
 import { getWorkspaceIdForUser } from "@/db/users";
 import { accounts, categories, transactions, transfers, workspaces } from "@/db/schema";
-import { financeStateSchema, transactionInputSchema, transferInputSchema } from "@/lib/finance-schema";
+import { accountInputSchema, financeStateSchema, transactionInputSchema, transferInputSchema } from "@/lib/finance-schema";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -63,6 +63,11 @@ export async function POST(request: Request) {
     const workspaceId = await currentWorkspaceId();
     if (!workspaceId) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     const body = await request.json();
+    if (body?.type === "account") {
+      const parsed = accountInputSchema.safeParse(body.account);
+      if (!parsed.success) return NextResponse.json({ error: "La cuenta no es válida." }, { status: 400 });
+      return NextResponse.json(await createAccount(workspaceId, parsed.data), { headers: { "Cache-Control": "private, no-store" } });
+    }
     if (body?.type === "transfer") {
       const parsed = transferInputSchema.safeParse(body.transfer);
       if (!parsed.success) return NextResponse.json({ error: "La transferencia no es válida." }, { status: 400 });
