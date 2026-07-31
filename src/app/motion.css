@@ -1,0 +1,203 @@
+/* RutaSaldo motion system: brief, functional and accessible. */
+:root {
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button,
+a,
+input,
+select,
+[role="menuitem"] {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-base) var(--motion-ease),
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion-ease);
+}
+
+button:not(:disabled):active,
+a:active,
+[role="menuitem"]:active {
+  transform: scale(0.975);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgb(82 107 94 / 45%);
+  outline-offset: 3px;
+}
+
+/* Route content enters quietly, like a native work app. */
+main > div:not(header) {
+  animation: rutasaldo-content-in var(--motion-slow) var(--motion-ease-out) both;
+}
+
+/* Menus and notification surfaces grow from their trigger. */
+[role="menu"] {
+  transform-origin: top right;
+  animation: rutasaldo-popover-in var(--motion-base) var(--motion-ease-out) both;
+}
+
+section[role="dialog"] {
+  transform-origin: top right;
+  animation: rutasaldo-popover-in var(--motion-base) var(--motion-ease-out) both;
+}
+
+/* Full modal surfaces use a calmer lift. */
+div[role="dialog"],
+aside[role="dialog"] {
+  animation: rutasaldo-dialog-in var(--motion-slow) var(--motion-ease-out) both;
+}
+
+/* Mobile drawer slides from its physical edge. */
+aside[role="dialog"] {
+  animation-name: rutasaldo-drawer-in;
+}
+
+/* Backdrops fade instead of appearing abruptly. */
+.fixed.inset-0.bg-black\/40,
+.fixed.inset-0.z-20,
+.fixed.inset-0.z-40 > button.absolute.inset-0 {
+  animation: rutasaldo-backdrop-in var(--motion-base) ease-out both;
+}
+
+/* Cards receive restrained depth feedback on pointer devices. */
+@media (hover: hover) and (pointer: fine) {
+  main article,
+  main section:not([role="dialog"]),
+  main [class*="rounded-2xl"][class*="border"] {
+    transition:
+      transform var(--motion-base) var(--motion-ease),
+      box-shadow var(--motion-base) var(--motion-ease),
+      border-color var(--motion-base) ease;
+  }
+
+  main article:hover,
+  main section:not([role="dialog"]):hover,
+  main [class*="rounded-2xl"][class*="border"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px rgb(23 35 30 / 7%);
+  }
+}
+
+/* Sidebar navigation feels selected rather than abruptly recolored. */
+nav a svg,
+[role="menuitem"] svg,
+button svg {
+  transition: transform var(--motion-base) var(--motion-ease);
+}
+
+nav a:hover svg,
+[role="menuitem"]:hover svg {
+  transform: translateX(2px);
+}
+
+/* New badges and alert dots appear with a compact spring-like scale. */
+[aria-label="Sin leer"],
+button[aria-label^="Notificaciones"] > span {
+  animation: rutasaldo-badge-in var(--motion-base) var(--motion-ease-out) both;
+}
+
+@keyframes rutasaldo-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rutasaldo-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rutasaldo-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rutasaldo-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes rutasaldo-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes rutasaldo-badge-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 639px) {
+  section[role="dialog"] {
+    transform-origin: top center;
+    animation-name: rutasaldo-mobile-sheet-in;
+  }
+
+  @keyframes rutasaldo-mobile-sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  button:active,
+  a:active,
+  [role="menuitem"]:active,
+  main article:hover,
+  main section:hover,
+  main [class*="rounded-2xl"][class*="border"]:hover {
+    transform: none !important;
+  }
+}
