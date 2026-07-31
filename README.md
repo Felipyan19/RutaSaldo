@@ -1,310 +1,182 @@
 # RutaSaldo
 
-> Controla cómo se mueve tu dinero entre bancos, billeteras, tarjetas y deudas, sin contar dos veces las transferencias.
+> Controla cómo se mueve tu dinero entre bancos, billeteras, tarjetas y deudas sin contar dos veces las transferencias.
 
-RutaSaldo es una aplicación web instalable (PWA) de finanzas personales, pensada inicialmente para Colombia y Latinoamérica. Su objetivo es responder una pregunta sencilla:
+RutaSaldo es una PWA de finanzas personales orientada inicialmente a Colombia y Latinoamérica. Su objetivo es mostrar cuánto dinero está realmente disponible después de considerar cuentas, tarjetas, transferencias, deudas y próximos pagos.
 
-> **¿Cuánto dinero tengo realmente disponible después de considerar mis cuentas, tarjetas, deudas y próximos pagos?**
+## Estado actual
 
-La aplicación está diseñada para personas que reciben dinero en una cuenta y luego lo distribuyen entre bancos, billeteras digitales, tarjetas de crédito, cuentas internacionales y otras obligaciones.
+Última revisión: **31 de julio de 2026**.
 
-## El problema
+### Producción
 
-Las aplicaciones tradicionales suelen tratar cada movimiento como un ingreso o un gasto. Esto genera información incorrecta cuando una persona mueve dinero entre sus propias cuentas.
+- Aplicación desplegada en Vercel.
+- PostgreSQL administrado en Neon.
+- Autenticación con Google mediante Auth.js.
+- Workspace privado y aislamiento de datos por usuario.
+- API financiera autenticada y sin caché pública.
+- Interfaz responsive y manifiesto PWA.
 
-Por ejemplo:
+### Funciones disponibles
 
-```text
-Salario → RappiPay → Bancolombia → Pago de tarjeta
-                    → Nequi       → Gastos diarios
-                    → Wise        → Ahorro
-```
+- Crear cuentas bancarias, billeteras y efectivo.
+- Crear tarjetas de crédito mediante un modelo híbrido de cuentas.
+- Registrar ingresos y gastos.
+- Registrar transferencias entre cuentas propias.
+- Pagar tarjetas mediante transferencias, sin duplicar el gasto original.
+- Categorías financieras.
+- Dashboard con ingresos, gastos, dinero disponible, deuda de tarjetas y patrimonio neto.
+- Historial ordenado por fecha y hora de creación, mostrando primero lo más reciente.
+- Centro interno de notificaciones financieras.
+- Alertas por fecha próxima de pago y utilización alta del cupo.
+- OCR de facturas con Gemini, revisión editable y confirmación manual antes de guardar.
+- Reintentos, fallback y manejo específico de errores temporales del proveedor de IA.
 
-- Pasar dinero de RappiPay a Bancolombia no es un gasto.
-- Recibirlo en Bancolombia no es un nuevo ingreso.
-- Pagar una tarjeta no debe duplicar el gasto de la compra original.
-- Una compra a cuotas debe afectar la deuda y los pagos futuros de forma correcta.
+## Reglas financieras implementadas
 
-RutaSaldo tendrá como núcleo la **conciliación de transferencias** y el cálculo del **saldo realmente disponible**.
+- Los importes se almacenan como enteros; no se usa `float` para dinero.
+- Una transferencia crea una relación y dos movimientos enlazados.
+- Las transferencias no se incluyen en ingresos ni gastos.
+- En el historial se muestra una sola representación de cada transferencia.
+- Una compra hecha con tarjeta se registra como gasto y aumenta la deuda.
+- Un pago hacia una tarjeta se registra como transferencia y reduce la deuda.
+- Las tarjetas viven en `accounts` con tipo `credit_card`.
+- `credit_card_details` almacena cupo, día de corte, día de pago, últimos cuatro dígitos y tasa.
+- El saldo de las cuentas se reconstruye desde el saldo inicial y el historial de movimientos.
+- Las operaciones sensibles se ejecutan dentro de transacciones PostgreSQL.
 
-## Features
+## Estado por fases
 
-### MVP
+### Fase 1 — Fundamentos: completada
 
-- Registro e inicio de sesión.
-- Espacios financieros personales y, a futuro, compartidos.
-- Cuentas bancarias, efectivo y billeteras digitales.
-- Soporte para Nequi, Daviplata, RappiPay, Bancolombia y otras entidades.
-- Cuentas en varias monedas, incluyendo COP y cuentas como Wise.
-- Registro de ingresos, gastos y transferencias.
-- Transferencias enlazadas entre cuentas propias.
-- Prevención de ingresos y gastos duplicados.
-- Categorías, etiquetas y notas.
-- Tarjetas de crédito con cupo, saldo, fecha de corte y fecha de pago.
-- Compras a una o varias cuotas.
-- Pagos de tarjetas sin duplicar el gasto original.
-- Deudas y créditos con saldo, tasa, cuota y vencimiento.
-- Movimientos recurrentes.
-- Presupuestos por categoría.
-- Metas y bolsillos de ahorro.
-- Importación y exportación mediante CSV.
-- Dashboard mensual y responsive.
-- PWA instalable.
+- [x] Autenticación.
+- [x] Workspaces privados.
+- [x] Cuentas y saldos iniciales.
+- [x] Ingresos, gastos y categorías.
+- [x] Dashboard básico.
+- [x] Persistencia en PostgreSQL.
+- [x] PWA responsive.
 
-### Indicadores principales
+### Fase 2 — Movimiento real del dinero: en ejecución
 
-- Dinero total en cuentas y billeteras.
-- Deuda total.
-- Patrimonio neto.
-- Obligaciones antes del siguiente ingreso.
-- Saldo realmente disponible.
-- Dinero disponible por día hasta la próxima quincena.
-- Próximos pagos.
-- Cumplimiento del presupuesto.
+- [x] Transferencias enlazadas.
+- [x] Transferencias excluidas de ingresos y gastos.
+- [x] Tarjetas de crédito.
+- [x] Cupo, corte, pago, últimos cuatro dígitos y tasa.
+- [x] Pagos de tarjeta sin duplicar gastos.
+- [x] Deuda de tarjetas y patrimonio neto en el dashboard.
+- [x] Alertas básicas de tarjeta.
+- [ ] Conciliación manual de dos movimientos existentes como transferencia.
+- [ ] Compras a una o varias cuotas.
+- [ ] Calendario y estado de cuotas.
+- [ ] Deudas y créditos externos.
+- [ ] Próximos pagos persistidos y visibles en el resumen.
+- [ ] Pruebas de integración para compras, pagos, transferencias, cuotas y deudas.
 
-### Fases posteriores
+### Fase 3 — Planeación: pendiente
 
-- Conciliación sugerida automáticamente.
-- OCR de comprobantes y extractos.
-- Automatizaciones mediante n8n.
-- Asistente financiero con IA.
-- Reglas automáticas de categorización.
-- Finanzas compartidas para parejas o familias.
-- Sincronización offline con IndexedDB.
-- Integraciones bancarias cuando sean técnica y legalmente viables.
-- Portafolio de inversiones.
-- Predicciones de flujo de caja.
+- [ ] Presupuestos.
+- [ ] Quincenas y ciclos de ingreso personalizados.
+- [ ] Bolsillos y metas.
+- [ ] Disponible real y disponible diario.
+- [ ] Movimientos recurrentes.
 
-## Ruta del dinero
+### Fase 4 — Automatización: iniciada parcialmente
 
-La función diferenciadora será una vista que permita seguir el origen y destino del dinero:
+- [ ] Importación CSV.
+- [ ] Reglas automáticas de categorización.
+- [ ] Detección automática de duplicados.
+- [x] OCR de facturas.
+- [ ] Automatizaciones con n8n.
+- [ ] Asistente financiero con IA.
 
-```mermaid
-flowchart TD
-    Income["Salario o ingreso"] --> Main["Cuenta receptora"]
-    Main --> Bank["Banco"]
-    Main --> Wallet["Billetera"]
-    Main --> Savings["Ahorro / Wise"]
-    Bank --> Card["Pago de tarjeta"]
-    Wallet --> Expenses["Gastos reales"]
-```
+## Orden de implementación para cerrar la Fase 2
 
-Esta vista permitirá distinguir:
+La Fase 2 se cerrará en este orden para conservar consistencia contable:
 
-- Ingresos reales.
-- Gastos reales.
-- Transferencias entre cuentas propias.
-- Pagos de deuda.
-- Dinero reservado.
-- Movimientos posiblemente duplicados.
+1. **Compras a cuotas:** plan de cuotas enlazado a una compra original, sin registrar el gasto varias veces.
+2. **Próximos pagos:** calendario derivado de tarjetas, cuotas y deudas persistidas.
+3. **Deudas externas:** saldo, tasa, cuota, vencimiento y estado.
+4. **Conciliación manual:** convertir dos movimientos compatibles en una transferencia enlazada.
+5. **Pruebas financieras:** verificar que ningún flujo duplique ingresos, gastos o deuda.
 
-## Arquitectura propuesta
+## Referencias de producto y dominio
 
-Se propone comenzar con un **monolito modular**. Esta decisión reduce la complejidad operativa del MVP y mantiene límites de dominio que permitirán separar servicios más adelante si el producto lo necesita.
+La implementación es propia. Los siguientes proyectos se usan para estudiar patrones y comportamiento, no para copiar código:
 
-```mermaid
-flowchart TB
-    Client["Next.js PWA"] --> API["API / Server Actions"]
-    API --> Modules["Módulos de dominio"]
-    Modules --> DB[("PostgreSQL")]
-    Modules --> Queue["BullMQ / Redis"]
-    Modules --> Storage["Almacenamiento S3"]
-    Import["CSV y OCR futuro"] --> Modules
-    Queue --> Automation["Tareas recurrentes / n8n"]
-```
+| Proyecto | Referencia principal |
+|---|---|
+| [Actual Budget](https://github.com/actualbudget/actual) | Transferencias, conciliación, recurrencias y experiencia local-first |
+| [Firefly III](https://github.com/firefly-iii/firefly-iii) | Modelo financiero, cuentas, transacciones, pasivos y API |
+| [Sure](https://github.com/we-promise/sure) | Activos, pasivos, patrimonio y presentación del dashboard |
+| [Cashew](https://github.com/jameskokoska/Cashew) | Registro rápido, experiencia móvil y presupuestos |
+| [Monekin](https://github.com/enrique-lozano/Monekin) | Múltiples monedas, deudas y UX móvil |
+| [Ivy Wallet](https://github.com/Ivy-Apps/ivy-wallet) | Interacciones rápidas para movimientos manuales |
 
-### Stack sugerido
+> Antes de reutilizar código se debe revisar la licencia del proyecto de origen. Inspirarse en flujos y decisiones de diseño no equivale a copiar su implementación.
 
-| Capa | Tecnología | Uso |
-|---|---|---|
-| Aplicación | Next.js + TypeScript | PWA, interfaz y API inicial |
-| UI | Tailwind CSS + shadcn/ui | Componentes accesibles y reutilizables |
-| Base de datos | PostgreSQL | Persistencia transaccional |
-| ORM | Drizzle o Prisma | Esquema, migraciones y consultas |
-| Autenticación | Auth.js + Google OAuth 2.0 | Identidad, sesión cifrada y acceso por usuario |
-| Validación | Zod | Contratos y formularios |
-| Gráficas | Recharts | Dashboard y reportes |
-| Jobs | BullMQ + Redis | Recurrencias, importaciones y procesos en segundo plano |
-| Archivos | S3 compatible | Extractos y comprobantes |
-| Pruebas | Vitest + Playwright | Pruebas unitarias, integración y end-to-end |
-| Desarrollo | Docker Compose | PostgreSQL y Redis locales |
+## Arquitectura actual
 
-### Módulos de dominio
+RutaSaldo usa un monolito modular con Next.js App Router.
 
 ```text
 src/
-├── app/                 # Rutas, layouts y páginas
-│   ├── (auth)/          # Acceso público y registro
-│   ├── (dashboard)/     # Layout protegido por sesión
-│   │   ├── resumen/     # /resumen
-│   │   ├── cuentas/     # /cuentas
-│   │   ├── movimientos/ # /movimientos
-│   │   ├── categorias/  # /categorias
-│   │   └── configuracion/ # /configuracion
-│   └── api/             # Auth.js y API financiera
-├── modules/
-│   ├── auth/            # Usuarios y sesiones
-│   ├── workspaces/      # Finanzas personales o compartidas
-│   ├── accounts/        # Bancos, billeteras, efectivo y Wise
-│   ├── transactions/    # Ingresos, gastos, splits y transferencias
-│   ├── reconciliation/  # Detección y enlace de movimientos
-│   ├── credit-cards/    # Cupos, cortes, pagos y cuotas
-│   ├── debts/           # Créditos y obligaciones
-│   ├── budgets/         # Presupuestos y periodos
-│   ├── goals/           # Metas y bolsillos
-│   ├── recurring/       # Movimientos recurrentes
-│   ├── imports/         # CSV y futuros extractos
-│   └── dashboard/       # Métricas y proyecciones
-├── components/          # Componentes compartidos
-├── db/                  # Esquema, migraciones y seeds
-└── lib/                 # Utilidades e integraciones
+├── app/
+│   ├── (auth)/
+│   ├── (dashboard)/
+│   │   ├── resumen/
+│   │   ├── cuentas/
+│   │   ├── movimientos/
+│   │   ├── categorias/
+│   │   └── configuracion/
+│   └── api/
+├── components/
+├── db/
+└── lib/
 ```
 
-### Arquitectura de rutas y seguridad
+### Flujo de datos
 
-Las áreas del producto viven en rutas independientes del App Router. El layout de `(dashboard)` valida la sesión
-con Auth.js, resuelve el workspace del usuario y carga el estado inicial desde el servidor antes de renderizar
-las páginas. La navegación usa `next/link`, por lo que cada sección tiene una URL estable y puede crecer sin
-convertirse en un conjunto de pestañas controladas por un único componente.
+```mermaid
+flowchart LR
+    UI[Next.js UI] --> API[API autenticada]
+    API --> Domain[Lógica financiera]
+    Domain --> DB[(PostgreSQL / Neon)]
+    UI --> OCR[OCR de facturas]
+    OCR --> Gemini[Gemini API]
+```
 
-Las lecturas iniciales se hacen directamente desde el Server Component/layout; las mutaciones de la interfaz
-usan el endpoint autenticado `/api/finance`. Ese endpoint vuelve a validar la sesión, limita todas las consultas
-al `workspaceId` del usuario, valida el payload con Zod y devuelve `Cache-Control: private, no-store` para evitar
-cachear información financiera privada. El `PUT` conserva el reemplazo completo usado por el prototipo; las
-operaciones nuevas usan `POST`, `PATCH` y `DELETE?transactionId=...` para modificar movimientos de forma incremental
-dentro de una transacción de base de datos. Las transferencias se persisten como una relación y dos movimientos
-enlazados, por lo que no se cuentan como ingreso ni gasto.
+### Seguridad
 
-Las tarjetas siguen un modelo híbrido: pertenecen a `accounts` como cuentas de tipo `credit_card`, mientras que
-`credit_card_details` conserva su cupo, fecha de corte, fecha de pago, últimos cuatro dígitos y tasa. Su saldo
-negativo representa deuda. Una compra registrada en la tarjeta es un gasto; pagarla es una transferencia desde
-otra cuenta hacia la tarjeta y no crea un segundo gasto. El dashboard separa dinero disponible, deuda de tarjetas
-y patrimonio neto.
+- El layout protegido valida la sesión antes de cargar datos.
+- La API vuelve a validar la sesión en cada mutación.
+- Todas las consultas se limitan al `workspaceId` del usuario.
+- Las claves de Neon, Google y Gemini permanecen del lado del servidor.
+- Las respuestas financieras usan `Cache-Control: private, no-store`.
 
-## Modelo de dominio inicial
+## Modelo financiero actual
+
+| Entidad | Uso actual |
+|---|---|
+| `User` | Identidad autenticada |
+| `Workspace` | Contenedor privado de las finanzas |
+| `Account` | Banco, billetera, efectivo o tarjeta |
+| `CreditCardDetails` | Cupo, corte, pago y tasa |
+| `Transaction` | Ingreso, gasto o lado de transferencia |
+| `Transfer` | Relación entre dos cuentas propias |
+| `Category` | Clasificación de ingresos y gastos |
+
+Entidades que se agregarán para completar la Fase 2:
 
 | Entidad | Responsabilidad |
 |---|---|
-| `User` | Identidad del usuario |
-| `Workspace` | Contenedor de las finanzas |
-| `WorkspaceMember` | Acceso personal o compartido |
-| `Account` | Banco, billetera, efectivo o cuenta internacional |
-| `CreditCard` | Cupo, deuda, corte y fecha de pago |
-| `Transaction` | Movimiento financiero |
-| `TransactionSplit` | División de un movimiento entre categorías |
-| `Transfer` | Relación entre salida y entrada de cuentas propias |
-| `InstallmentPlan` | Compra y calendario de cuotas |
+| `InstallmentPlan` | Compra original y número total de cuotas |
+| `Installment` | Calendario, monto y estado de cada cuota |
 | `Debt` | Crédito u obligación externa |
-| `Category` | Clasificación de ingresos y gastos |
-| `Tag` | Clasificación flexible |
-| `Budget` | Límite por categoría y periodo |
-| `SavingsGoal` | Meta o dinero reservado |
-| `RecurringTransaction` | Movimiento programado |
-| `ImportJob` | Importación y conciliación de archivos |
-| `Attachment` | Comprobante o extracto asociado |
+| `DebtPayment` | Historial y próximos pagos de deuda |
+| `Reconciliation` | Enlace manual entre movimientos existentes |
 
-### Reglas financieras importantes
-
-- Los importes deben almacenarse como enteros en la unidad monetaria mínima o como `decimal`; nunca como `float`.
-- Una transferencia enlaza dos movimientos y no afecta ingresos ni gastos.
-- El gasto de una tarjeta ocurre al registrar la compra, no al pagar la tarjeta.
-- Un pago de tarjeta reduce una cuenta de activos y la deuda de la tarjeta.
-- Cada cuenta conserva su moneda original.
-- Las conversiones deben guardar monto de origen, monto de destino y tasa aplicada.
-- Los balances calculados deben poder reconstruirse desde el historial de movimientos.
-- Toda operación financiera sensible debe ejecutarse dentro de una transacción de base de datos.
-
-## Roadmap
-
-### Fase 1 — Fundamentos
-
-- Autenticación.
-- Workspaces.
-- Cuentas y saldos iniciales.
-- Ingresos, gastos y categorías.
-- Dashboard básico.
-
-### Fase 2 — Movimiento real del dinero
-
-- Transferencias enlazadas.
-- Conciliación manual.
-- Tarjetas de crédito.
-- Compras a cuotas.
-- Deudas y próximos pagos.
-
-### Fase 3 — Planeación
-
-- Presupuestos.
-- Quincenas y ciclos de ingreso personalizados.
-- Bolsillos y metas.
-- Disponible real y disponible diario.
-- Movimientos recurrentes.
-
-### Fase 4 — Automatización
-
-- Importación CSV.
-- Reglas de categorización.
-- Detección de duplicados.
-- OCR.
-- Flujos con n8n e IA.
-
-## Proyectos de referencia
-
-Estos repositorios sirven como referencia de producto, arquitectura y experiencia de usuario. La intención es estudiar sus decisiones y construir una implementación propia.
-
-| Proyecto | Referencia principal | Qué estudiar |
-|---|---|---|
-| [Actual Budget](https://github.com/actualbudget/actual) | Presupuestos y enfoque local-first | Reglas, recurrencias, sincronización y experiencia de presupuesto |
-| [Firefly III](https://github.com/firefly-iii/firefly-iii) | Modelo financiero maduro | Cuentas, transacciones, transferencias, categorías y API |
-| [Maybe / Sure](https://github.com/we-promise/sure) | Patrimonio y dashboard | Presentación de activos, deudas y patrimonio neto |
-| [Ghostfolio](https://github.com/ghostfolio/ghostfolio) | Inversiones | Portafolio, asignación de activos y métricas patrimoniales |
-| [Cashew](https://github.com/jameskokoska/Cashew) | Experiencia móvil | Registro rápido, presupuestos y objetivos |
-| [Monekin](https://github.com/enrique-lozano/Monekin) | Offline y múltiples monedas | UX móvil, monedas, deudas y propiedades |
-| [ezBookkeeping](https://github.com/mayswind/ezbookkeeping) | Aplicación self-hosted ligera | Rendimiento, despliegue y simplicidad operativa |
-| [Ivy Wallet](https://github.com/Ivy-Apps/ivy-wallet) | Registro manual en Android | Interacciones rápidas y diseño de movimientos |
-| [Awesome Personal Finance](https://github.com/finwiki/awesome-personal-finance) | Catálogo de soluciones | Investigación de herramientas y estándares existentes |
-
-### Estrategia para no empezar desde cero
-
-- Usar shadcn/ui para componentes base.
-- Usar Auth.js con Google OAuth 2.0 para autenticación.
-- Usar Recharts para visualizaciones.
-- Usar una librería estable para lectura y validación de CSV.
-- Adoptar patrones del modelo de transacciones de Firefly III.
-- Estudiar el motor de presupuestos y reglas de Actual Budget.
-- Tomar como referencia la experiencia móvil de Cashew.
-- Reservar la lógica propia para conciliación, quincenas, cuotas, bolsillos y saldo disponible real.
-
-> [!IMPORTANT]
-> Antes de reutilizar código, revisa la licencia de cada proyecto y sus dependencias. Algunos referentes utilizan GPL o AGPL y pueden exigir que las obras derivadas distribuidas o desplegadas publiquen su código fuente. Inspirarse en flujos y decisiones de diseño no equivale a copiar su implementación.
-
-## Principios del producto
-
-- **Claridad:** cada cifra debe poder explicarse desde sus movimientos.
-- **Sin duplicados:** mover dinero no debe alterar los ingresos ni los gastos.
-- **Privacidad:** los datos financieros pertenecen al usuario.
-- **Local primero:** COP, quincenas, cuotas y billeteras latinoamericanas son casos principales.
-- **Progresivo:** el registro manual y CSV deben funcionar antes de integrar bancos o IA.
-- **Portable:** el usuario debe poder exportar su información.
-
-## Estado
-
-**Fase 1 disponible como prototipo funcional.**
-
-- Inicio de sesión con Google OAuth 2.0 y workspace privado por usuario.
-- Registro explícito con Google, con aceptación obligatoria del tratamiento de datos de Google.
-- Aviso de privacidad consultable desde el acceso y registro de versión/fecha del consentimiento.
-- Cuentas bancarias, billeteras y efectivo con saldo inicial.
-- Registro de ingresos y gastos.
-- Categorías financieras.
-- Dashboard con saldos, totales y distribución de gastos.
-- Persistencia en PostgreSQL sobre Neon mediante API server-side.
-- Interfaz responsive y manifiesto PWA.
-
-La autenticación usa Auth.js con sesiones JWT cifradas. La autorización de la API se hace con la
-sesión del usuario y cada workspace se identifica internamente por su cuenta Google.
-
-### Ejecutar localmente
+## Desarrollo local
 
 Requiere Node.js 20 o superior.
 
@@ -314,47 +186,18 @@ npm run db:generate
 npm run dev
 ```
 
-Configura `DATABASE_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID` y `AUTH_GOOGLE_SECRET` usando `.env.example`
-antes de abrir `http://localhost:3000`.
+Variables principales:
 
-### Base de datos
+- `DATABASE_URL`
+- `AUTH_SECRET`
+- `AUTH_GOOGLE_ID`
+- `AUTH_GOOGLE_SECRET`
+- `AUTH_URL`
+- `GEMINI_API_KEY`
+- `GEMINI_OCR_MODEL` opcional
+- `GEMINI_OCR_FALLBACK_MODEL` opcional
 
-Las migraciones están en la carpeta `drizzle/`. Para generar cambios futuros:
-
-```bash
-npm run db:generate
-npm run db:push
-```
-
-La migración `0002_add_google_data_consent.sql` agrega a `users` la versión y fecha del consentimiento
-de datos de Google. Debe aplicarse en Neon antes de desplegar esta versión.
-
-Las variables requeridas son:
-
-- `DATABASE_URL`: conexión pooled de Neon, únicamente server-side.
-- `AUTH_SECRET`: secreto aleatorio de al menos 32 caracteres.
-- `AUTH_GOOGLE_ID`: Client ID de Google OAuth.
-- `AUTH_GOOGLE_SECRET`: Client Secret de Google OAuth.
-- `AUTH_URL`: URL base de la aplicación.
-
-### Configurar Google OAuth 2.0
-
-En Google Cloud Console crea un cliente OAuth de tipo **Web application** y agrega estos URI:
-
-```text
-http://localhost:3000/api/auth/callback/google
-https://ruta-saldo.vercel.app/api/auth/callback/google
-```
-
-Configura las credenciales como variables server-side en local y en Vercel. Auth.js usa los scopes
-`openid`, `profile` y `email`; esta integración autentica al usuario y no solicita acceso a bancos,
-Gmail ni Google Drive.
-
-RutaSaldo separa los flujos **Iniciar sesión** y **Crear cuenta**. Iniciar sesión solo permite entrar a
-usuarios que ya existen en Neon; si la cuenta no existe, el callback OAuth rechaza el acceso y pide usar
-Crear cuenta. El registro muestra el aviso de privacidad y exige aceptar el tratamiento de los datos
-básicos compartidos por Google (nombre, correo, foto e identificador de cuenta) antes de crear el usuario
-y su workspace privado.
+Validación recomendada antes de fusionar:
 
 ```bash
 npm run lint
@@ -362,10 +205,22 @@ npm test
 npm run build
 ```
 
-## Contribuciones
+## Despliegue y base de datos
 
-Las propuestas, discusiones y pull requests son bienvenidos. Antes de implementar una funcionalidad grande, abre un issue describiendo el problema, el caso de uso y el comportamiento esperado.
+- Las migraciones Drizzle viven en `drizzle/`.
+- Los cambios de esquema deben aplicarse en Neon antes de enviar tráfico a código que dependa de ellos.
+- Vercel despliega previews para ramas y producción desde `main`.
+- Después de cada cambio financiero se deben revisar build, logs de runtime y datos persistidos.
+
+## Principios del producto
+
+- **Claridad:** cada cifra debe poder explicarse desde sus movimientos.
+- **Sin duplicados:** mover dinero no altera ingresos ni gastos.
+- **Privacidad:** cada usuario solo puede acceder a su workspace.
+- **Local primero:** COP, quincenas, cuotas y billeteras latinoamericanas son casos principales.
+- **Progresivo:** las automatizaciones no deben reemplazar la revisión del usuario.
+- **Portable:** el usuario debe poder exportar sus datos en una fase posterior.
 
 ## Licencia
 
-La licencia del proyecto está por definir. Para un proyecto público que permita uso y contribuciones amplias, se puede considerar **Apache-2.0** o **MIT**. La elección debe hacerse antes de aceptar contribuciones externas.
+La licencia del proyecto está por definir. Debe elegirse antes de aceptar contribuciones externas significativas.
