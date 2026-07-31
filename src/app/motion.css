@@ -11,6 +11,7 @@ button,
 a,
 input,
 select,
+textarea,
 [role="menuitem"] {
   transition:
     color var(--motion-fast) ease,
@@ -27,10 +28,15 @@ a:active,
   transform: scale(0.975);
 }
 
+button:disabled {
+  cursor: not-allowed;
+}
+
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+textarea:focus-visible {
   outline: 2px solid rgb(82 107 94 / 45%);
   outline-offset: 3px;
 }
@@ -69,20 +75,20 @@ aside[role="dialog"] {
   animation: rutasaldo-backdrop-in var(--motion-base) ease-out both;
 }
 
-/* Cards receive restrained depth feedback on pointer devices. */
+/*
+ * Only independent semantic cards receive depth feedback.
+ * Structural sections, charts and nested bordered surfaces stay anchored to
+ * the page background so parent and child containers never lift together.
+ */
 @media (hover: hover) and (pointer: fine) {
-  main article,
-  main section:not([role="dialog"]),
-  main [class*="rounded-2xl"][class*="border"] {
+  main article {
     transition:
       transform var(--motion-base) var(--motion-ease),
       box-shadow var(--motion-base) var(--motion-ease),
       border-color var(--motion-base) ease;
   }
 
-  main article:hover,
-  main section:not([role="dialog"]):hover,
-  main [class*="rounded-2xl"][class*="border"]:hover {
+  main article:hover {
     transform: translateY(-2px);
     box-shadow: 0 14px 34px rgb(23 35 30 / 7%);
   }
@@ -195,9 +201,7 @@ button[aria-label^="Notificaciones"] > span {
   button:active,
   a:active,
   [role="menuitem"]:active,
-  main article:hover,
-  main section:hover,
-  main [class*="rounded-2xl"][class*="border"]:hover {
+  main article:hover {
     transform: none !important;
   }
 }
