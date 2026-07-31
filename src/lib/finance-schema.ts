@@ -3,6 +3,14 @@ import { z } from "zod";
 const id = z.string().trim().min(1).max(120);
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color inválido");
 
+const creditCardDetailsSchema = z.object({
+  creditLimit: z.number().int().positive().finite().max(1_000_000_000_000),
+  statementDay: z.number().int().min(1).max(31),
+  paymentDueDay: z.number().int().min(1).max(31),
+  lastFourDigits: z.string().regex(/^\d{4}$/, "Deben ser cuatro dígitos").nullable(),
+  interestRate: z.number().finite().min(0).max(500),
+});
+
 export const transferInputSchema = z.object({
   id,
   fromAccountId: id,
@@ -16,9 +24,21 @@ export const accountInputSchema = z.object({
   id,
   name: z.string().trim().min(1).max(80),
   institution: z.string().trim().min(1).max(80),
-  kind: z.enum(["bank", "wallet", "cash"]),
+  kind: z.enum(["bank", "wallet", "cash", "credit_card"]),
   color,
   openingBalance: z.number().int().finite().min(-1_000_000_000_000).max(1_000_000_000_000),
+  creditCardDetails: creditCardDetailsSchema.nullable().optional(),
+}).superRefine((account, context) => {
+  if (account.kind === "credit_card") {
+    if (!account.creditCardDetails) {
+      context.addIssue({ code: "custom", path: ["creditCardDetails"], message: "La tarjeta necesita sus datos de crédito." });
+    }
+    if (account.openingBalance > 0) {
+      context.addIssue({ code: "custom", path: ["openingBalance"], message: "La deuda inicial de una tarjeta no puede ser positiva." });
+    }
+  } else if (account.creditCardDetails) {
+    context.addIssue({ code: "custom", path: ["creditCardDetails"], message: "Solo las tarjetas pueden tener datos de crédito." });
+  }
 });
 
 export const categoryInputSchema = z.object({
