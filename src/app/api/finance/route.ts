@@ -3,13 +3,21 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { stateToRows } from "@/db/seed";
-import { createAccount, createTransaction, createTransfer, deleteTransaction, readFinanceState, updateTransaction } from "@/db/finance";
+import { createAccount, createTransaction, createTransfer, deleteTransaction, FinanceInputError, readFinanceState, updateTransaction } from "@/db/finance";
 import { getWorkspaceIdForUser } from "@/db/users";
 import { accounts, categories, transactions, transfers, workspaces } from "@/db/schema";
 import { accountInputSchema, financeStateSchema, transactionInputSchema, transferInputSchema } from "@/lib/finance-schema";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+function mutationError(error: unknown, fallbackMessage: string) {
+  if (error instanceof FinanceInputError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  return NextResponse.json({ error: fallbackMessage }, { status: 500 });
+}
 
 async function currentWorkspaceId() {
   const session = await auth();
@@ -78,7 +86,7 @@ export async function POST(request: Request) {
     return NextResponse.json(await createTransaction(workspaceId, parsed.data), { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("[finance] POST failed", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo crear el movimiento" }, { status: 400 });
+    return mutationError(error, "No se pudo crear el registro financiero");
   }
 }
 
@@ -93,7 +101,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json(await updateTransaction(workspaceId, transactionId, parsed.data), { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("[finance] PATCH failed", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo actualizar el movimiento" }, { status: 400 });
+    return mutationError(error, "No se pudo actualizar el movimiento");
   }
 }
 
