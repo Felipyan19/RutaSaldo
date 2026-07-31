@@ -1,0 +1,63 @@
+/* Consistent form controls across browsers. */
+input,
+select,
+textarea {
+  accent-color: #526b5e;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.75rem !important;
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #52665a 50%),
+    linear-gradient(135deg, #52665a 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  color: #18241e;
+  cursor: pointer;
+}
+
+select:hover:not(:disabled) {
+  border-color: #aeb9b0;
+  background-color: #fbfcf8;
+}
+
+select:focus-visible {
+  background-color: #fff;
+}
+
+select:disabled {
+  color: #8a958e;
+  background-color: #f0f2ee;
+  cursor: not-allowed;
+}
+
+select option {
+  color: #18241e;
+  background: #fff;
+  font: inherit;
+}
+
+input[type="date"],
+input[type="number"] {
+  color-scheme: light;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9aa49d;
+  opacity: 1;
+}
+
+@media (forced-colors: active) {
+  select {
+    appearance: auto;
+    padding-right: 0.75rem !important;
+    background-image: none;
+  }
+}
