@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Menu, Plus, Settings, Tags, WalletCards, X } from "lucide-react";
+import { ArrowRightLeft, Bell, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Menu, Plus, Settings, Tags, WalletCards, X } from "lucide-react";
 import { useState } from "react";
 import { logOut } from "@/app/actions";
-import { Account, Transaction } from "@/lib/finance";
+import { Account, Transaction, Transfer } from "@/lib/finance";
 import { useFinance } from "./finance-provider";
-import { AccountForm, TransactionForm } from "@/components/forms";
+import { AccountForm, TransactionForm, TransferForm } from "@/components/forms";
 import { BrandMark } from "@/components/brand-mark";
 import { RutaSaldoLoader } from "@/components/rutasaldo-loader";
 
@@ -20,16 +20,28 @@ const navigation = [
 ] as const;
 
 type User = { name?: string | null; email?: string | null; image?: string | null };
+type ModalName = "transaction" | "transfer" | "account" | null;
 
 export function DashboardShell({ user, children }: { user: User; children: React.ReactNode }) {
   const pathname = usePathname();
-  const { state, error, saving, createAccount, createTransaction } = useFinance();
+  const { state, error, saving, createAccount, createTransaction, createTransfer } = useFinance();
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [modal, setModal] = useState<"transaction" | "account" | null>(null);
+  const [quickMenu, setQuickMenu] = useState(false);
+  const [modal, setModal] = useState<ModalName>(null);
   const current = navigation.find((item) => pathname.startsWith(item.href)) ?? navigation[0];
+
+  function openModal(nextModal: Exclude<ModalName, null>) {
+    setQuickMenu(false);
+    setModal(nextModal);
+  }
 
   function addTransaction(transaction: Transaction) {
     void createTransaction(transaction);
+    setModal(null);
+  }
+
+  function addTransfer(transfer: Transfer) {
+    void createTransfer(transfer);
     setModal(null);
   }
 
@@ -62,14 +74,34 @@ export function DashboardShell({ user, children }: { user: User; children: React
           </div>
           <div className="flex items-center gap-2">
             <button type="button" title="Notificaciones" aria-label="Notificaciones" className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#dce1da] bg-white"><Bell size={18} aria-hidden="true" /><span className="sr-only">Notificaciones</span><span aria-hidden="true" className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#e76a58]" /></button>
-            <button
-              type="button"
-              onClick={() => setModal(state.accounts.length ? "transaction" : "account")}
-              aria-label={state.accounts.length ? "Agregar movimiento" : "Agregar cuenta"}
-              className="flex h-10 items-center gap-2 rounded-xl bg-[#17231e] px-4 text-sm font-semibold text-white"
-            >
-              <Plus size={17} aria-hidden="true" /> <span className="hidden sm:inline">{state.accounts.length ? "Movimiento" : "Cuenta"}</span>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => state.accounts.length ? setQuickMenu((open) => !open) : openModal("account")}
+                aria-label={state.accounts.length ? "Abrir acciones rápidas" : "Agregar cuenta"}
+                aria-haspopup={state.accounts.length ? "menu" : undefined}
+                aria-expanded={state.accounts.length ? quickMenu : undefined}
+                className="flex h-10 items-center gap-2 rounded-xl bg-[#17231e] px-4 text-sm font-semibold text-white"
+              >
+                <Plus size={17} aria-hidden="true" /> <span className="hidden sm:inline">{state.accounts.length ? "Agregar" : "Cuenta"}</span>
+              </button>
+              {quickMenu && (
+                <div role="menu" className="absolute right-0 top-12 z-30 w-60 overflow-hidden rounded-2xl border border-[#dce1da] bg-white p-2 shadow-[0_18px_50px_rgba(23,35,30,.16)]">
+                  <button type="button" role="menuitem" onClick={() => openModal("transaction")} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-[#f1f4ef]">
+                    <CircleDollarSign size={18} className="text-[#4f6c5c]" aria-hidden="true" />
+                    <span><span className="block">Ingreso o gasto</span><span className="mt-0.5 block text-xs font-normal text-[#6b786f]">Registrar un movimiento</span></span>
+                  </button>
+                  <button type="button" role="menuitem" disabled={state.accounts.length < 2} onClick={() => openModal("transfer")} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-[#f1f4ef] disabled:cursor-not-allowed disabled:opacity-45">
+                    <ArrowRightLeft size={18} className="text-[#4f6c5c]" aria-hidden="true" />
+                    <span><span className="block">Transferir entre cuentas</span><span className="mt-0.5 block text-xs font-normal text-[#6b786f]">Banco, billetera o tarjeta</span></span>
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => openModal("account")} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-[#f1f4ef]">
+                    <WalletCards size={18} className="text-[#4f6c5c]" aria-hidden="true" />
+                    <span><span className="block">Nueva cuenta</span><span className="mt-0.5 block text-xs font-normal text-[#6b786f]">Agregar banco o billetera</span></span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -82,6 +114,7 @@ export function DashboardShell({ user, children }: { user: User; children: React
       </main>
 
       {modal === "transaction" && <TransactionForm accounts={state.accounts} categories={state.categories} onSave={addTransaction} onClose={() => setModal(null)} />}
+      {modal === "transfer" && <TransferForm accounts={state.accounts} onSave={addTransfer} onClose={() => setModal(null)} />}
       {modal === "account" && <AccountForm onSave={addAccount} onClose={() => setModal(null)} />}
     </div>
   );
