@@ -1,0 +1,79 @@
+import { AlertTriangle, BellRing, CalendarClock, type LucideIcon } from "lucide-react";
+import { creditCardDebt, formatCOP, type FinanceState } from "@/lib/finance";
+
+export type FinanceNotification = {
+  id: string;
+  title: string;
+  description: string;
+  href: string;
+  severity: "info" | "warning" | "urgent";
+  icon: LucideIcon;
+};
+
+function nextMonthlyDate(day: number, now: Date) {
+  const safeDay = Math.min(Math.max(day, 1), 28);
+  const currentMonth = new Date(now.getFullYear(), now.getMonth(), safeDay, 12);
+  if (currentMonth >= now) return currentMonth;
+  return new Date(now.getFullYear(), now.getMonth() + 1, safeDay, 12);
+}
+
+function daysBetween(from: Date, to: Date) {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const fromDay = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+  const toDay = new Date(to.getFullYear(), to.getMonth(), to.getDate()).getTime();
+  return Math.round((toDay - fromDay) / dayMs);
+}
+
+export function buildFinanceNotifications(state: FinanceState, now = new Date()): FinanceNotification[] {
+  const notifications: FinanceNotification[] = [];
+
+  for (const account of state.accounts) {
+    if (account.kind !== "credit_card" || !account.creditCardDetails) continue;
+
+    const debt = creditCardDebt(account, state.transactions);
+    const limit = account.creditCardDetails.creditLimit;
+    const utilization = limit > 0 ? debt / limit : 0;
+    const dueDate = nextMonthlyDate(account.creditCardDetails.paymentDueDay, now);
+    const daysUntilDue = daysBetween(now, dueDate);
+    const period = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}`;
+
+    if (debt > 0 && daysUntilDue <= 7) {
+      const dueLabel = daysUntilDue === 0 ? "vence hoy" : daysUntilDue === 1 ? "vence mañana" : `vence en ${daysUntilDue} días`;
+      notifications.push({
+        id: `card-due:${account.id}:${period}`,
+        title: `${account.institution} ${dueLabel}`,
+        description: `Tienes una deuda actual de ${formatCOP(debt)} en ${account.name}.`,
+        href: "/cuentas",
+        severity: daysUntilDue <= 1 ? "urgent" : "warning",
+        icon: CalendarClock,
+      });
+    }
+
+    if (debt > 0 && utilization >= 0.8) {
+      notifications.push({
+        id: `card-limit:${account.id}:${Math.floor(utilization * 10)}`,
+        title: "Cupo de tarjeta casi agotado",
+        description: `${account.institution} está usando ${Math.round(utilization * 100)}% de su cupo.`,
+        href: "/cuentas",
+        severity: utilization >= 0.95 ? "urgent" : "warning",
+        icon: AlertTriangle,
+      });
+    }
+  }
+
+  if (state.accounts.length > 0 && state.transactions.length === 0) {
+    notifications.push({
+      id: "first-movement",
+      title: "Registra tu primer movimiento",
+      description: "Agrega un ingreso o gasto para que el resumen refleje tu situación real.",
+      href: "/movimientos",
+      severity: "info",
+      icon: BellRing,
+    });
+  }
+
+  return notifications.sort((a, b) => {
+    const weight = { urgent: 0, warning: 1, info: 2 } as const;
+    return weight[a.severity] - weight[b.severity];
+  });
+}

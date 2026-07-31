@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ArrowRightLeft, Bell, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Menu, Plus, Settings, Tags, WalletCards, X } from "lucide-react";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { ArrowRightLeft, Bell, CheckCheck, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Menu, Plus, Settings, Tags, WalletCards, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { logOut } from "@/app/actions";
 import { Account, Transaction, Transfer } from "@/lib/finance";
+import { buildFinanceNotifications } from "@/lib/notifications";
 import { useFinance } from "./finance-provider";
 import { AccountForm, TransactionForm, TransferForm } from "@/components/forms";
 import { BrandMark } from "@/components/brand-mark";
@@ -24,15 +25,52 @@ type ModalName = "transaction" | "transfer" | "account" | null;
 
 export function DashboardShell({ user, children }: { user: User; children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { state, error, saving, createAccount, createTransaction, createTransfer } = useFinance();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [quickMenu, setQuickMenu] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationNow, setNotificationNow] = useState<Date | null>(null);
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
   const [modal, setModal] = useState<ModalName>(null);
   const current = navigation.find((item) => pathname.startsWith(item.href)) ?? navigation[0];
+  const notificationStorageKey = `rutasaldo:read-notifications:${user.email ?? state.workspaceName}`;
+  const notifications = useMemo(
+    () => notificationNow ? buildFinanceNotifications(state, notificationNow) : [],
+    [notificationNow, state],
+  );
+  const unreadNotifications = notifications.filter((notification) => !readNotificationIds.includes(notification.id));
+
+  useEffect(() => {
+    setNotificationNow(new Date());
+    try {
+      const stored = window.localStorage.getItem(notificationStorageKey);
+      setReadNotificationIds(stored ? JSON.parse(stored) : []);
+    } catch {
+      setReadNotificationIds([]);
+    }
+  }, [notificationStorageKey]);
+
+  function saveReadNotifications(ids: string[]) {
+    const uniqueIds = [...new Set(ids)];
+    setReadNotificationIds(uniqueIds);
+    try {
+      window.localStorage.setItem(notificationStorageKey, JSON.stringify(uniqueIds));
+    } catch {
+      // The center still works for the current session when storage is unavailable.
+    }
+  }
 
   function openModal(nextModal: Exclude<ModalName, null>) {
     setQuickMenu(false);
+    setNotificationsOpen(false);
     setModal(nextModal);
+  }
+
+  function openNotification(id: string, href: string) {
+    saveReadNotifications([...readNotificationIds, id]);
+    setNotificationsOpen(false);
+    router.push(href);
   }
 
   function addTransaction(transaction: Transaction) {
@@ -73,11 +111,74 @@ export function DashboardShell({ user, children }: { user: User; children: React
             <div><h1 className="text-xl font-semibold tracking-[-0.025em]">{current.label}</h1><p className="hidden text-xs text-[#52665a] sm:block">Tu espacio financiero privado</p></div>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" title="Notificaciones" aria-label="Notificaciones" className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#dce1da] bg-white"><Bell size={18} aria-hidden="true" /><span className="sr-only">Notificaciones</span><span aria-hidden="true" className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#e76a58]" /></button>
             <div className="relative">
               <button
                 type="button"
-                onClick={() => state.accounts.length ? setQuickMenu((open) => !open) : openModal("account")}
+                title="Notificaciones"
+                aria-label={`Notificaciones${unreadNotifications.length ? `, ${unreadNotifications.length} sin leer` : ""}`}
+                aria-haspopup="dialog"
+                aria-expanded={notificationsOpen}
+                onClick={() => {
+                  setQuickMenu(false);
+                  setNotificationsOpen((open) => !open);
+                }}
+                className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#dce1da] bg-white"
+              >
+                <Bell size={18} aria-hidden="true" />
+                {unreadNotifications.length > 0 && (
+                  <span aria-hidden="true" className="absolute -right-1 -top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-[#e76a58] px-1 text-[10px] font-bold text-white">
+                    {unreadNotifications.length > 9 ? "9+" : unreadNotifications.length}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && (
+                <section role="dialog" aria-label="Centro de notificaciones" className="absolute right-0 top-12 z-30 w-[min(22rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-[#dce1da] bg-white shadow-[0_18px_50px_rgba(23,35,30,.16)]">
+                  <div className="flex items-center justify-between border-b border-[#edf0eb] px-4 py-3">
+                    <div>
+                      <h2 className="text-sm font-semibold">Notificaciones</h2>
+                      <p className="mt-0.5 text-xs text-[#6b786f]">Alertas basadas en tus datos financieros</p>
+                    </div>
+                    {unreadNotifications.length > 0 && (
+                      <button type="button" onClick={() => saveReadNotifications([...readNotificationIds, ...notifications.map((item) => item.id)])} className="flex items-center gap-1.5 text-xs font-semibold text-[#4f6c5c]">
+                        <CheckCheck size={15} aria-hidden="true" /> Marcar leídas
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-[26rem] overflow-y-auto p-2">
+                    {notifications.length === 0 ? (
+                      <div className="px-5 py-9 text-center">
+                        <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-[#eef3ef] text-[#4f6c5c]"><Bell size={19} aria-hidden="true" /></span>
+                        <p className="mt-3 text-sm font-semibold">Todo está al día</p>
+                        <p className="mt-1 text-xs leading-5 text-[#6b786f]">Aquí aparecerán vencimientos y alertas importantes.</p>
+                      </div>
+                    ) : notifications.map((notification) => {
+                      const Icon = notification.icon;
+                      const unread = !readNotificationIds.includes(notification.id);
+                      const tone = notification.severity === "urgent" ? "bg-[#fff0ec] text-[#b24e3d]" : notification.severity === "warning" ? "bg-[#fff8e8] text-[#9a6a22]" : "bg-[#eef3ef] text-[#4f6c5c]";
+                      return (
+                        <button key={notification.id} type="button" onClick={() => openNotification(notification.id, notification.href)} className={`flex w-full gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-[#f4f6f2] ${unread ? "bg-[#fafbf8]" : "opacity-70"}`}>
+                          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tone}`}><Icon size={18} aria-hidden="true" /></span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-start justify-between gap-2">
+                              <span className="text-sm font-semibold">{notification.title}</span>
+                              {unread && <span aria-label="Sin leer" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#e76a58]" />}
+                            </span>
+                            <span className="mt-1 block text-xs leading-5 text-[#6b786f]">{notification.description}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setNotificationsOpen(false);
+                  state.accounts.length ? setQuickMenu((open) => !open) : openModal("account");
+                }}
                 aria-label={state.accounts.length ? "Abrir acciones rápidas" : "Agregar cuenta"}
                 aria-haspopup={state.accounts.length ? "menu" : undefined}
                 aria-expanded={state.accounts.length ? quickMenu : undefined}
