@@ -80,8 +80,8 @@ export async function POST(request: Request) {
     if (file.size === 0 || file.size > MAX_FILE_SIZE) return NextResponse.json({ error: "El archivo debe pesar menos de 8 MB." }, { status: 400 });
 
     const data = Buffer.from(await file.arrayBuffer()).toString("base64");
-    const primaryModel = process.env.GEMINI_OCR_MODEL ?? "gemini-3.5-flash";
-    const fallbackModel = process.env.GEMINI_OCR_FALLBACK_MODEL ?? "gemini-2.5-flash";
+    const primaryModel = process.env.GEMINI_OCR_MODEL ?? "gemini-3.5-flash-lite";
+    const fallbackModel = process.env.GEMINI_OCR_FALLBACK_MODEL ?? "gemini-3.5-flash";
     const geminiBody = {
       contents: [{
         parts: [
