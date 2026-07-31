@@ -23,22 +23,22 @@ type User = { name?: string | null; email?: string | null; image?: string | null
 
 export function DashboardShell({ user, children }: { user: User; children: React.ReactNode }) {
   const pathname = usePathname();
-  const { state, error, saving, updateState } = useFinance();
+  const { state, error, saving, createAccount, createTransaction } = useFinance();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [modal, setModal] = useState<"transaction" | "account" | null>(null);
   const current = navigation.find((item) => pathname.startsWith(item.href)) ?? navigation[0];
 
   function addTransaction(transaction: Transaction) {
-    void updateState({ ...state, transactions: [transaction, ...state.transactions] });
+    void createTransaction(transaction);
     setModal(null);
   }
 
   function addAccount(account: Account) {
-    void updateState({ ...state, accounts: [...state.accounts, account] });
+    void createAccount(account);
     setModal(null);
   }
 
-  if (!state) return <RutaSaldoLoader label="Cargando tus registros…" />;
+  if (!state) return <RutaSaldoLoader label="Cargando tus registros…" variant="light" />;
 
   return (
     <div className="min-h-screen bg-[#f4f5f0] text-[#18241e]">
