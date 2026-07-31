@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "./index";
 import { seedWorkspace } from "./seed";
 import { accounts, categories, creditCardDetails, transactions, transfers, workspaces } from "./schema";
@@ -22,8 +22,8 @@ export async function readFinanceState(workspaceId: string): Promise<FinanceStat
     db.select().from(accounts).where(eq(accounts.workspaceId, workspaceId)).orderBy(asc(accounts.name)),
     db.select().from(creditCardDetails).where(eq(creditCardDetails.workspaceId, workspaceId)),
     db.select().from(categories).where(eq(categories.workspaceId, workspaceId)).orderBy(asc(categories.name)),
-    db.select().from(transactions).where(eq(transactions.workspaceId, workspaceId)).orderBy(asc(transactions.date)),
-    db.select().from(transfers).where(eq(transfers.workspaceId, workspaceId)).orderBy(asc(transfers.date)),
+    db.select().from(transactions).where(eq(transactions.workspaceId, workspaceId)).orderBy(desc(transactions.date), desc(transactions.createdAt), desc(transactions.id)),
+    db.select().from(transfers).where(eq(transfers.workspaceId, workspaceId)).orderBy(desc(transfers.date), desc(transfers.createdAt), desc(transfers.id)),
   ]);
 
   return {
