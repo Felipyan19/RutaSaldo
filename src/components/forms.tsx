@@ -7,6 +7,35 @@ import { Modal } from "./modal";
 const inputClass =
   "mt-2 h-11 w-full rounded-xl border border-[#dce1da] bg-white px-3 text-sm outline-none transition focus:border-[#526b5e] focus:ring-2 focus:ring-[#526b5e]/10";
 
+function parseMoney(value: FormDataEntryValue | null) {
+  return Number(String(value ?? "").replace(/\D/g, ""));
+}
+
+function MoneyInput({ name, required = false, min = 0, placeholder = "$ 0" }: { name: string; required?: boolean; min?: number; placeholder?: string }) {
+  const [value, setValue] = useState("");
+
+  return (
+    <input
+      name={name}
+      value={value}
+      onChange={(event) => {
+        const digits = event.target.value.replace(/\D/g, "");
+        setValue(digits ? new Intl.NumberFormat("es-CO").format(Number(digits)) : "");
+      }}
+      required={required}
+      inputMode="numeric"
+      autoComplete="off"
+      placeholder={placeholder}
+      aria-describedby={`${name}-currency-hint`}
+      className={inputClass}
+      onBlur={() => {
+        const numericValue = parseMoney(value);
+        if (value && numericValue < min) setValue(min ? new Intl.NumberFormat("es-CO").format(min) : "");
+      }}
+    />
+  );
+}
+
 export function TransactionForm({
   accounts,
   categories,
@@ -27,7 +56,7 @@ export function TransactionForm({
       id: crypto.randomUUID(),
       kind,
       description: String(data.get("description")),
-      amount: Number(data.get("amount")),
+      amount: parseMoney(data.get("amount")),
       accountId: String(data.get("accountId")),
       categoryId: String(data.get("categoryId")),
       date: String(data.get("date")),
@@ -58,7 +87,8 @@ export function TransactionForm({
         </label>
         <label className="block text-sm font-medium">
           Valor
-          <input name="amount" required min="1" type="number" placeholder="$ 0" className={inputClass} />
+          <MoneyInput name="amount" required min={1} />
+          <span id="amount-currency-hint" className="mt-1 block text-xs font-normal text-[#6b786f]">El valor se muestra con separadores de miles.</span>
         </label>
         <div className="grid grid-cols-2 gap-4">
           <label className="block text-sm font-medium">
@@ -101,7 +131,7 @@ export function AccountForm({
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const isCreditCard = kind === "credit_card";
-    const currentDebt = Number(data.get("openingBalance"));
+    const currentDebt = parseMoney(data.get("openingBalance"));
     onSave({
       id: crypto.randomUUID(),
       name: String(data.get("name")),
@@ -110,7 +140,7 @@ export function AccountForm({
       openingBalance: isCreditCard ? -Math.abs(currentDebt) : currentDebt,
       color: "#4b8068",
       creditCardDetails: isCreditCard ? {
-        creditLimit: Number(data.get("creditLimit")),
+        creditLimit: parseMoney(data.get("creditLimit")),
         statementDay: Number(data.get("statementDay")),
         paymentDueDay: Number(data.get("paymentDueDay")),
         lastFourDigits: String(data.get("lastFourDigits") ?? "").trim() || null,
@@ -140,14 +170,16 @@ export function AccountForm({
         </label>
         <label className="block text-sm font-medium">
           {kind === "credit_card" ? "Deuda actual" : "Saldo inicial"}
-          <input name="openingBalance" required min="0" type="number" placeholder="$ 0" className={inputClass} />
+          <MoneyInput name="openingBalance" required />
+          <span id="openingBalance-currency-hint" className="mt-1 block text-xs font-normal text-[#6b786f]">Ejemplo: 1.500.000 para un millón quinientos mil.</span>
         </label>
         {kind === "credit_card" && (
           <div className="space-y-5 rounded-2xl border border-[#dce1da] bg-[#f7f8f4] p-4">
             <p className="text-sm font-semibold">Datos de la tarjeta</p>
             <label className="block text-sm font-medium">
               Cupo total
-              <input name="creditLimit" required min="1" type="number" placeholder="$ 0" className={inputClass} />
+              <MoneyInput name="creditLimit" required min={1} />
+              <span id="creditLimit-currency-hint" className="mt-1 block text-xs font-normal text-[#6b786f]">El cupo se guarda como un valor entero en COP.</span>
             </label>
             <div className="grid grid-cols-2 gap-4">
               <label className="block text-sm font-medium">
@@ -203,7 +235,7 @@ export function TransferForm({
       id: crypto.randomUUID(),
       fromAccountId,
       toAccountId,
-      amount: Number(data.get("amount")),
+      amount: parseMoney(data.get("amount")),
       description: String(data.get("description")),
       date: String(data.get("date")),
     });
@@ -232,7 +264,8 @@ export function TransferForm({
         </label>
         <label className="block text-sm font-medium">
           Valor
-          <input name="amount" required min="1" type="number" placeholder="$ 0" className={inputClass} />
+          <MoneyInput name="amount" required min={1} />
+          <span id="amount-currency-hint" className="mt-1 block text-xs font-normal text-[#6b786f]">Verás 150.000 o 1.500.000 mientras escribes.</span>
         </label>
         <label className="block text-sm font-medium">
           Descripción
