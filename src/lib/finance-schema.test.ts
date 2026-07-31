@@ -16,6 +16,19 @@ const baseState = {
 };
 
 describe("finance state transfer validation", () => {
+  it("accepts an account with both income and expense movements", () => {
+    const result = financeStateSchema.safeParse({
+      ...baseState,
+      transfers: [],
+      transactions: [
+        { id: "income-1", accountId: "source", categoryId: "other", kind: "income", amount: 2_000_000, description: "Nómina", date: "2026-01-10" },
+        { id: "expense-1", accountId: "source", categoryId: "other", kind: "expense", amount: 250_000, description: "Mercado", date: "2026-01-11" },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("accepts a transfer pair without a category", () => {
     expect(financeStateSchema.safeParse(baseState).success).toBe(true);
   });
