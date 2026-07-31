@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "./index";
 import { seedWorkspace } from "./seed";
-import { accounts, categories, transactions, transfers, workspaces } from "./schema";
+import { accounts, categories, creditCardDetails, transactions, transfers, workspaces } from "./schema";
 import { FinanceState, Transaction, Transfer } from "@/lib/finance";
 import { accountInputSchema, transactionInputSchema, transferInputSchema } from "@/lib/finance-schema";
 
@@ -18,8 +18,9 @@ export async function readFinanceState(workspaceId: string): Promise<FinanceStat
   if (!workspace) await seedWorkspace(db, workspaceId);
 
   const [workspaceRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
-  const [accountRows, categoryRows, transactionRows, transferRows] = await Promise.all([
+  const [accountRows, creditCardRows, categoryRows, transactionRows, transferRows] = await Promise.all([
     db.select().from(accounts).where(eq(accounts.workspaceId, workspaceId)).orderBy(asc(accounts.name)),
+    db.select().from(creditCardDetails).where(eq(creditCardDetails.workspaceId, workspaceId)),
     db.select().from(categories).where(eq(categories.workspaceId, workspaceId)).orderBy(asc(categories.name)),
     db.select().from(transactions).where(eq(transactions.workspaceId, workspaceId)).orderBy(asc(transactions.date)),
     db.select().from(transfers).where(eq(transfers.workspaceId, workspaceId)).orderBy(asc(transfers.date)),
@@ -27,14 +28,24 @@ export async function readFinanceState(workspaceId: string): Promise<FinanceStat
 
   return {
     workspaceName: workspaceRow?.name ?? "Mis finanzas",
-    accounts: accountRows.map((account) => ({
-      id: account.id,
-      name: account.name,
-      institution: account.institution,
-      kind: account.kind as FinanceState["accounts"][number]["kind"],
-      color: account.color,
-      openingBalance: account.openingBalance,
-    })),
+    accounts: accountRows.map((account) => {
+      const details = creditCardRows.find((row) => row.accountId === account.id);
+      return {
+        id: account.id,
+        name: account.name,
+        institution: account.institution,
+        kind: account.kind as FinanceState["accounts"][number]["kind"],
+        color: account.color,
+        openingBalance: account.openingBalance,
+        creditCardDetails: details ? {
+          creditLimit: details.creditLimit,
+          statementDay: details.statementDay,
+          paymentDueDay: details.paymentDueDay,
+          lastFourDigits: details.lastFourDigits,
+          interestRate: details.interestRateBasisPoints / 100,
+        } : null,
+      };
+    }),
     categories: categoryRows.map((category) => ({
       id: category.id,
       name: category.name,
@@ -70,7 +81,19 @@ export async function createAccount(workspaceId: string, input: FinanceState["ac
   const db = getDb();
 
   await db.transaction(async (tx) => {
-    await tx.insert(accounts).values({ ...parsed, workspaceId, currency: "COP" });
+    const { creditCardDetails: details, ...account } = parsed;
+    await tx.insert(accounts).values({ ...account, workspaceId, currency: "COP" });
+    if (account.kind === "credit_card" && details) {
+      await tx.insert(creditCardDetails).values({
+        accountId: account.id,
+        workspaceId,
+        creditLimit: details.creditLimit,
+        statementDay: details.statementDay,
+        paymentDueDay: details.paymentDueDay,
+        lastFourDigits: details.lastFourDigits,
+        interestRateBasisPoints: Math.round(details.interestRate * 100),
+      });
+    }
   });
 
   return readFinanceState(workspaceId);
