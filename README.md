@@ -175,6 +175,12 @@ operaciones nuevas usan `POST`, `PATCH` y `DELETE?transactionId=...` para modifi
 dentro de una transacción de base de datos. Las transferencias se persisten como una relación y dos movimientos
 enlazados, por lo que no se cuentan como ingreso ni gasto.
 
+Las tarjetas siguen un modelo híbrido: pertenecen a `accounts` como cuentas de tipo `credit_card`, mientras que
+`credit_card_details` conserva su cupo, fecha de corte, fecha de pago, últimos cuatro dígitos y tasa. Su saldo
+negativo representa deuda. Una compra registrada en la tarjeta es un gasto; pagarla es una transferencia desde
+otra cuenta hacia la tarjeta y no crea un segundo gasto. El dashboard separa dinero disponible, deuda de tarjetas
+y patrimonio neto.
+
 ## Modelo de dominio inicial
 
 | Entidad | Responsabilidad |

@@ -34,6 +34,16 @@ export const accounts = pgTable("accounts", {
   currency: text("currency").notNull().default("COP"),
 });
 
+export const creditCardDetails = pgTable("credit_card_details", {
+  accountId: text("account_id").primaryKey().references(() => accounts.id, { onDelete: "cascade" }),
+  workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  creditLimit: integer("credit_limit").notNull(),
+  statementDay: integer("statement_day").notNull(),
+  paymentDueDay: integer("payment_due_day").notNull(),
+  lastFourDigits: text("last_four_digits"),
+  interestRateBasisPoints: integer("interest_rate_basis_points").notNull().default(0),
+});
+
 export const categories = pgTable("categories", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),

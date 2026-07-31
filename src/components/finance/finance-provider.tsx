@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { clearFinanceState, createFinanceAccount, createFinanceTransaction, saveFinanceState } from "@/lib/storage";
-import { Account, emptyFinanceState, FinanceState, Transaction } from "@/lib/finance";
+import { clearFinanceState, createFinanceAccount, createFinanceTransaction, createFinanceTransfer, saveFinanceState } from "@/lib/storage";
+import { Account, emptyFinanceState, FinanceState, Transaction, Transfer } from "@/lib/finance";
 
 type FinanceContextValue = {
   state: FinanceState;
@@ -11,6 +11,7 @@ type FinanceContextValue = {
   updateState: (next: FinanceState) => Promise<void>;
   createAccount: (account: Account) => Promise<void>;
   createTransaction: (transaction: Transaction) => Promise<void>;
+  createTransfer: (transfer: Transfer) => Promise<void>;
   clearState: () => Promise<void>;
 };
 
@@ -70,7 +71,28 @@ export function FinanceProvider({ initialState, children }: { initialState: Fina
     }
   }, []);
 
-  const value = useMemo(() => ({ state, error, saving, updateState, createAccount: createAccountMutation, createTransaction: createTransactionMutation, clearState }), [state, error, saving, updateState, createAccountMutation, createTransactionMutation, clearState]);
+  const createTransferMutation = useCallback(async (transfer: Transfer) => {
+    setSaving(true);
+    try {
+      setState(await createFinanceTransfer(transfer));
+      setError(null);
+    } catch {
+      setError("No se pudo guardar la transferencia en Neon.");
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const value = useMemo(() => ({
+    state,
+    error,
+    saving,
+    updateState,
+    createAccount: createAccountMutation,
+    createTransaction: createTransactionMutation,
+    createTransfer: createTransferMutation,
+    clearState,
+  }), [state, error, saving, updateState, createAccountMutation, createTransactionMutation, createTransferMutation, clearState]);
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
 }
 

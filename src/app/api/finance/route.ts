@@ -5,7 +5,7 @@ import { getDb } from "@/db";
 import { stateToRows } from "@/db/seed";
 import { createAccount, createTransaction, createTransfer, deleteTransaction, FinanceInputError, readFinanceState, updateTransaction } from "@/db/finance";
 import { getWorkspaceIdForUser } from "@/db/users";
-import { accounts, categories, transactions, transfers, workspaces } from "@/db/schema";
+import { accounts, categories, creditCardDetails, transactions, transfers, workspaces } from "@/db/schema";
 import { accountInputSchema, financeStateSchema, transactionInputSchema, transferInputSchema } from "@/lib/finance-schema";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +54,7 @@ export async function PUT(request: Request) {
 
       const rows = stateToRows(state, workspaceId);
       if (rows.accounts.length) await tx.insert(accounts).values(rows.accounts);
+      if (rows.creditCardDetails.length) await tx.insert(creditCardDetails).values(rows.creditCardDetails);
       if (rows.categories.length) await tx.insert(categories).values(rows.categories);
       if (rows.transfers.length) await tx.insert(transfers).values(rows.transfers);
       if (rows.transactions.length) await tx.insert(transactions).values(rows.transactions);
