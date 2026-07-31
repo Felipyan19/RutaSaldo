@@ -3,7 +3,7 @@ import { getDb } from "./index";
 import { seedWorkspace } from "./seed";
 import { accounts, categories, transactions, transfers, workspaces } from "./schema";
 import { FinanceState, Transaction, Transfer } from "@/lib/finance";
-import { transactionInputSchema, transferInputSchema } from "@/lib/finance-schema";
+import { accountInputSchema, transactionInputSchema, transferInputSchema } from "@/lib/finance-schema";
 
 export async function readFinanceState(workspaceId: string): Promise<FinanceState> {
   const db = getDb();
@@ -57,6 +57,17 @@ export async function readFinanceState(workspaceId: string): Promise<FinanceStat
 }
 
 type DbTransaction = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
+
+export async function createAccount(workspaceId: string, input: FinanceState["accounts"][number]) {
+  const parsed = accountInputSchema.parse(input);
+  const db = getDb();
+
+  await db.transaction(async (tx) => {
+    await tx.insert(accounts).values({ ...parsed, workspaceId, currency: "COP" });
+  });
+
+  return readFinanceState(workspaceId);
+}
 
 async function assertWorkspaceAccounts(tx: DbTransaction, workspaceId: string, accountIds: string[]) {
   const uniqueIds = [...new Set(accountIds)];
