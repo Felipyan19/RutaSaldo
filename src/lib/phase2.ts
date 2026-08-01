@@ -53,8 +53,8 @@ export type UpcomingPayment = {
 };
 
 function validDate(year: number, month: number, day: number) {
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  return new Date(year, month, Math.min(Math.max(day, 1), lastDay), 12);
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month, Math.min(Math.max(day, 1), lastDay), 12));
 }
 
 function nextMonthlyDate(day: number, from: Date) {
