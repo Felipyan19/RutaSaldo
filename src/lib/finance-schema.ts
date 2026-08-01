@@ -30,12 +30,8 @@ export const accountInputSchema = z.object({
   creditCardDetails: creditCardDetailsSchema.nullable().optional(),
 }).superRefine((account, context) => {
   if (account.kind === "credit_card") {
-    if (!account.creditCardDetails) {
-      context.addIssue({ code: "custom", path: ["creditCardDetails"], message: "La tarjeta necesita sus datos de crédito." });
-    }
-    if (account.openingBalance > 0) {
-      context.addIssue({ code: "custom", path: ["openingBalance"], message: "La deuda inicial de una tarjeta no puede ser positiva." });
-    }
+    if (!account.creditCardDetails) context.addIssue({ code: "custom", path: ["creditCardDetails"], message: "La tarjeta necesita sus datos de crédito." });
+    if (account.openingBalance > 0) context.addIssue({ code: "custom", path: ["openingBalance"], message: "La deuda inicial de una tarjeta no puede ser positiva." });
   } else if (account.creditCardDetails) {
     context.addIssue({ code: "custom", path: ["creditCardDetails"], message: "Solo las tarjetas pueden tener datos de crédito." });
   }
@@ -45,7 +41,7 @@ export const categoryInputSchema = z.object({
   id,
   name: z.string().trim().min(1).max(60),
   color,
-  icon: z.string().trim().min(1).max(8),
+  icon: z.string().trim().min(1).max(24),
 });
 
 export const transactionInputSchema = z.object({
@@ -71,45 +67,23 @@ export const financeStateSchema = z.object({
   const categoryIds = new Set(state.categories.map((category) => category.id));
   const transferIds = new Set(state.transfers.map((transfer) => transfer.id));
 
-  if (accountIds.size !== state.accounts.length) {
-    context.addIssue({ code: "custom", path: ["accounts"], message: "No puede haber cuentas duplicadas." });
-  }
-  if (categoryIds.size !== state.categories.length) {
-    context.addIssue({ code: "custom", path: ["categories"], message: "No puede haber categorías duplicadas." });
-  }
-  if (transferIds.size !== state.transfers.length) {
-    context.addIssue({ code: "custom", path: ["transfers"], message: "No puede haber transferencias duplicadas." });
-  }
+  if (accountIds.size !== state.accounts.length) context.addIssue({ code: "custom", path: ["accounts"], message: "No puede haber cuentas duplicadas." });
+  if (categoryIds.size !== state.categories.length) context.addIssue({ code: "custom", path: ["categories"], message: "No puede haber categorías duplicadas." });
+  if (transferIds.size !== state.transfers.length) context.addIssue({ code: "custom", path: ["transfers"], message: "No puede haber transferencias duplicadas." });
 
   state.transfers.forEach((transfer, index) => {
-    if (!accountIds.has(transfer.fromAccountId)) {
-      context.addIssue({ code: "custom", path: ["transfers", index, "fromAccountId"], message: "La cuenta de origen no pertenece al espacio." });
-    }
-    if (!accountIds.has(transfer.toAccountId)) {
-      context.addIssue({ code: "custom", path: ["transfers", index, "toAccountId"], message: "La cuenta de destino no pertenece al espacio." });
-    }
-    if (transfer.fromAccountId === transfer.toAccountId) {
-      context.addIssue({ code: "custom", path: ["transfers", index, "toAccountId"], message: "Una transferencia necesita cuentas distintas." });
-    }
+    if (!accountIds.has(transfer.fromAccountId)) context.addIssue({ code: "custom", path: ["transfers", index, "fromAccountId"], message: "La cuenta de origen no pertenece al espacio." });
+    if (!accountIds.has(transfer.toAccountId)) context.addIssue({ code: "custom", path: ["transfers", index, "toAccountId"], message: "La cuenta de destino no pertenece al espacio." });
+    if (transfer.fromAccountId === transfer.toAccountId) context.addIssue({ code: "custom", path: ["transfers", index, "toAccountId"], message: "Una transferencia necesita cuentas distintas." });
   });
 
   state.transactions.forEach((transaction, index) => {
-    if (!accountIds.has(transaction.accountId)) {
-      context.addIssue({ code: "custom", path: ["transactions", index, "accountId"], message: "La cuenta no pertenece al espacio." });
-    }
-    if (transaction.categoryId && !categoryIds.has(transaction.categoryId)) {
-      context.addIssue({ code: "custom", path: ["transactions", index, "categoryId"], message: "La categoría no pertenece al espacio." });
-    }
+    if (!accountIds.has(transaction.accountId)) context.addIssue({ code: "custom", path: ["transactions", index, "accountId"], message: "La cuenta no pertenece al espacio." });
+    if (transaction.categoryId && !categoryIds.has(transaction.categoryId)) context.addIssue({ code: "custom", path: ["transactions", index, "categoryId"], message: "La categoría no pertenece al espacio." });
     if (transaction.kind === "transfer") {
-      if (!transaction.transferId || !transferIds.has(transaction.transferId)) {
-        context.addIssue({ code: "custom", path: ["transactions", index, "transferId"], message: "La transferencia enlazada no existe en el espacio." });
-      }
-      if (!transaction.transferSide) {
-        context.addIssue({ code: "custom", path: ["transactions", index, "transferSide"], message: "El movimiento transferido debe indicar su lado." });
-      }
-      if (transaction.categoryId !== null) {
-        context.addIssue({ code: "custom", path: ["transactions", index, "categoryId"], message: "Las transferencias no usan categorías." });
-      }
+      if (!transaction.transferId || !transferIds.has(transaction.transferId)) context.addIssue({ code: "custom", path: ["transactions", index, "transferId"], message: "La transferencia enlazada no existe en el espacio." });
+      if (!transaction.transferSide) context.addIssue({ code: "custom", path: ["transactions", index, "transferSide"], message: "El movimiento transferido debe indicar su lado." });
+      if (transaction.categoryId !== null) context.addIssue({ code: "custom", path: ["transactions", index, "categoryId"], message: "Las transferencias no usan categorías." });
     } else if (transaction.transferId || transaction.transferSide) {
       context.addIssue({ code: "custom", path: ["transactions", index, "transferId"], message: "Solo los movimientos de tipo transferencia pueden enlazarse." });
     } else if (transaction.categoryId === null) {
@@ -125,12 +99,8 @@ export const financeStateSchema = z.object({
       context.addIssue({ code: "custom", path: ["transfers", index], message: "Cada transferencia debe tener una salida y una entrada." });
       return;
     }
-    if (outgoing.accountId !== transfer.fromAccountId || incoming.accountId !== transfer.toAccountId) {
-      context.addIssue({ code: "custom", path: ["transfers", index], message: "Las cuentas de los movimientos no coinciden con la transferencia." });
-    }
-    if (outgoing.amount !== transfer.amount || incoming.amount !== transfer.amount) {
-      context.addIssue({ code: "custom", path: ["transfers", index], message: "Los importes de la transferencia deben coincidir." });
-    }
+    if (outgoing.accountId !== transfer.fromAccountId || incoming.accountId !== transfer.toAccountId) context.addIssue({ code: "custom", path: ["transfers", index], message: "Las cuentas de los movimientos no coinciden con la transferencia." });
+    if (outgoing.amount !== transfer.amount || incoming.amount !== transfer.amount) context.addIssue({ code: "custom", path: ["transfers", index], message: "Los importes de la transferencia deben coincidir." });
   });
 });
 

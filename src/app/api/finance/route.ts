@@ -4,18 +4,16 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { stateToRows } from "@/db/seed";
 import { createAccount, createTransaction, createTransfer, deleteTransaction, FinanceInputError, readFinanceState, updateTransaction } from "@/db/finance";
+import { createCategory, deleteCategory, updateCategory } from "@/db/categories";
 import { getWorkspaceIdForUser } from "@/db/users";
 import { accounts, categories, creditCardDetails, transactions, transfers, workspaces } from "@/db/schema";
-import { accountInputSchema, financeStateSchema, transactionInputSchema, transferInputSchema } from "@/lib/finance-schema";
+import { accountInputSchema, categoryInputSchema, financeStateSchema, transactionInputSchema, transferInputSchema } from "@/lib/finance-schema";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function mutationError(error: unknown, fallbackMessage: string) {
-  if (error instanceof FinanceInputError) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
+  if (error instanceof FinanceInputError) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ error: fallbackMessage }, { status: 500 });
 }
 
@@ -44,14 +42,12 @@ export async function PUT(request: Request) {
     if (!parsed.success) return NextResponse.json({ error: "Los datos financieros no son válidos." }, { status: 400 });
     const state = parsed.data;
     const db = getDb();
-
     await db.transaction(async (tx) => {
       await tx.insert(workspaces).values({ id: workspaceId, name: state.workspaceName }).onConflictDoUpdate({ target: workspaces.id, set: { name: state.workspaceName } });
       await tx.delete(transactions).where(eq(transactions.workspaceId, workspaceId));
       await tx.delete(transfers).where(eq(transfers.workspaceId, workspaceId));
       await tx.delete(accounts).where(eq(accounts.workspaceId, workspaceId));
       await tx.delete(categories).where(eq(categories.workspaceId, workspaceId));
-
       const rows = stateToRows(state, workspaceId);
       if (rows.accounts.length) await tx.insert(accounts).values(rows.accounts);
       if (rows.creditCardDetails.length) await tx.insert(creditCardDetails).values(rows.creditCardDetails);
@@ -59,7 +55,6 @@ export async function PUT(request: Request) {
       if (rows.transfers.length) await tx.insert(transfers).values(rows.transfers);
       if (rows.transactions.length) await tx.insert(transactions).values(rows.transactions);
     });
-
     return NextResponse.json(await readFinanceState(workspaceId), { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("[finance] PUT failed", error);
@@ -76,6 +71,11 @@ export async function POST(request: Request) {
       const parsed = accountInputSchema.safeParse(body.account);
       if (!parsed.success) return NextResponse.json({ error: "La cuenta no es válida." }, { status: 400 });
       return NextResponse.json(await createAccount(workspaceId, parsed.data), { headers: { "Cache-Control": "private, no-store" } });
+    }
+    if (body?.type === "category") {
+      const parsed = categoryInputSchema.safeParse(body.category);
+      if (!parsed.success) return NextResponse.json({ error: "La categoría no es válida." }, { status: 400 });
+      return NextResponse.json(await createCategory(workspaceId, parsed.data), { headers: { "Cache-Control": "private, no-store" } });
     }
     if (body?.type === "transfer") {
       const parsed = transferInputSchema.safeParse(body.transfer);
@@ -96,13 +96,19 @@ export async function PATCH(request: Request) {
     const workspaceId = await currentWorkspaceId();
     if (!workspaceId) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     const body = await request.json();
+    if (body?.type === "category") {
+      const categoryId = typeof body.categoryId === "string" ? body.categoryId : "";
+      const parsed = categoryInputSchema.omit({ id: true }).safeParse(body.category);
+      if (!categoryId || !parsed.success) return NextResponse.json({ error: "La categoría no es válida." }, { status: 400 });
+      return NextResponse.json(await updateCategory(workspaceId, categoryId, parsed.data), { headers: { "Cache-Control": "private, no-store" } });
+    }
     const transactionId = typeof body?.transactionId === "string" ? body.transactionId : "";
     const parsed = transactionInputSchema.omit({ id: true }).safeParse(body?.transaction);
     if (body?.type !== "transaction" || !transactionId || !parsed.success) return NextResponse.json({ error: "El movimiento no es válido." }, { status: 400 });
     return NextResponse.json(await updateTransaction(workspaceId, transactionId, parsed.data), { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("[finance] PATCH failed", error);
-    return mutationError(error, "No se pudo actualizar el movimiento");
+    return mutationError(error, "No se pudo actualizar el registro financiero");
   }
 }
 
@@ -110,13 +116,12 @@ export async function DELETE(request: Request) {
   try {
     const workspaceId = await currentWorkspaceId();
     if (!workspaceId) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    const transactionId = new URL(request.url).searchParams.get("transactionId");
-    if (transactionId) {
-      return NextResponse.json(await deleteTransaction(workspaceId, transactionId), { headers: { "Cache-Control": "private, no-store" } });
-    }
+    const url = new URL(request.url);
+    const categoryId = url.searchParams.get("categoryId");
+    if (categoryId) return NextResponse.json(await deleteCategory(workspaceId, categoryId), { headers: { "Cache-Control": "private, no-store" } });
+    const transactionId = url.searchParams.get("transactionId");
+    if (transactionId) return NextResponse.json(await deleteTransaction(workspaceId, transactionId), { headers: { "Cache-Control": "private, no-store" } });
     const db = getDb();
-   // Keep the workspace, categories, and user identity intact while clearing financial data.
-   // Deleting the workspace would cascade into `users` and invalidate the session.
     await db.transaction(async (tx) => {
       await tx.delete(transactions).where(eq(transactions.workspaceId, workspaceId));
       await tx.delete(transfers).where(eq(transfers.workspaceId, workspaceId));
@@ -125,6 +130,6 @@ export async function DELETE(request: Request) {
     return NextResponse.json(await readFinanceState(workspaceId), { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("[finance] DELETE failed", error);
-    return NextResponse.json({ error: "No se pudieron limpiar los datos financieros" }, { status: 500 });
+    return mutationError(error, "No se pudo eliminar el registro financiero");
   }
 }
