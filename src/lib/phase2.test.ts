@@ -51,4 +51,9 @@ describe("deriveUpcomingPayments", () => {
     const payment = deriveUpcomingPayments(lowBalance, new Date("2026-08-01T12:00:00")).find((item) => item.kind === "debt");
     expect(payment?.amount).toBe(50000);
   });
+
+  it("ordena primero vencidos y luego próximos por fecha", () => {
+    const payments = deriveUpcomingPayments(state, new Date("2026-08-01T12:00:00"));
+    expect(payments.map((item) => item.id)).toEqual(["installment:i-2", "debt:debt-1", "installment:i-3"]);
+  });
 });
