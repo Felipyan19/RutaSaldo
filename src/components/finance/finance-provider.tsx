@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
-import { clearFinanceState, createFinanceAccount, createFinanceCategory, createFinanceTransaction, createFinanceTransfer, deleteFinanceCategory, saveFinanceState, updateFinanceCategory } from "@/lib/storage";
+import { clearFinanceState, createFinanceAccount, createFinanceCategory, createFinanceTransaction, createFinanceTransfer, deleteFinanceCategory, loadFinanceState, saveFinanceState, updateFinanceCategory } from "@/lib/storage";
 import { Account, Category, emptyFinanceState, FinanceState, Transaction, Transfer } from "@/lib/finance";
 
 export const FINANCE_ACTION_HISTORY_KEY = "rutasaldo:finance-action-history";
@@ -20,6 +20,7 @@ type FinanceContextValue = {
   state: FinanceState;
   error: string | null;
   saving: boolean;
+  refreshState: () => Promise<void>;
   updateState: (next: FinanceState) => Promise<void>;
   createAccount: (account: Account) => Promise<void>;
   createCategory: (category: Category) => Promise<boolean>;
@@ -63,6 +64,11 @@ export function FinanceProvider({ initialState, children }: { initialState: Fina
   const showToast = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast((current) => current === message ? null : current), 3800);
+  }, []);
+
+  const refreshState = useCallback(async () => {
+    try { setState(await loadFinanceState()); setError(null); }
+    catch { setError("La operación se guardó, pero no se pudo actualizar el resumen."); }
   }, []);
 
   const updateState = useCallback(async (next: FinanceState) => {
@@ -144,7 +150,7 @@ export function FinanceProvider({ initialState, children }: { initialState: Fina
     finally { setSaving(false); }
   }, [showToast]);
 
-  const value = useMemo(() => ({ state, error, saving, updateState, createAccount: createAccountMutation, createCategory: createCategoryMutation, updateCategory: updateCategoryMutation, deleteCategory: deleteCategoryMutation, createTransaction: createTransactionMutation, createTransfer: createTransferMutation, clearState }), [state, error, saving, updateState, createAccountMutation, createCategoryMutation, updateCategoryMutation, deleteCategoryMutation, createTransactionMutation, createTransferMutation, clearState]);
+  const value = useMemo(() => ({ state, error, saving, refreshState, updateState, createAccount: createAccountMutation, createCategory: createCategoryMutation, updateCategory: updateCategoryMutation, deleteCategory: deleteCategoryMutation, createTransaction: createTransactionMutation, createTransfer: createTransferMutation, clearState }), [state, error, saving, refreshState, updateState, createAccountMutation, createCategoryMutation, updateCategoryMutation, deleteCategoryMutation, createTransactionMutation, createTransferMutation, clearState]);
 
   return <FinanceContext.Provider value={value}>{children}{toast && <div className="fixed bottom-5 left-1/2 z-[80] flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-2xl border border-[#d7e1d9] bg-[#fbfcf8] px-4 py-3 text-sm text-[#18241e] shadow-[0_18px_50px_rgba(23,35,30,.18)]" role="status" aria-live="polite"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#e4f2e8] text-[#3f7258]"><CheckCircle2 size={18} aria-hidden="true" /></span><span className="min-w-0 flex-1 font-semibold">{toast}</span><button type="button" onClick={() => setToast(null)} aria-label="Cerrar confirmación" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#65726a] hover:bg-[#edf0eb]"><X size={16} aria-hidden="true" /></button></div>}</FinanceContext.Provider>;
 }
