@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { getWorkspaceIdForUser } from "@/db/users";
-import { createDebt, createInstallmentPurchase, payDebt, readPhase2State, reconcileTransactions } from "@/db/phase2";
+import { createDebt, createInstallmentPurchase, payDebt, readPhase2State, reconcileTransactions, setInstallmentPayment } from "@/db/phase2";
 import { FinanceInputError } from "@/db/finance";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +39,11 @@ export async function POST(request: Request) {
       const parsed = z.object({ id, accountId: id, categoryId: id, description: z.string().trim().min(1).max(200), totalAmount: money, installmentCount: z.number().int().min(2).max(60), purchaseDate: date }).safeParse(body.purchase);
       if (!parsed.success) return NextResponse.json({ error: "La compra a cuotas no es válida." }, { status: 400 });
       return NextResponse.json(await createInstallmentPurchase(current, parsed.data));
+    }
+    if (body?.type === "installment_payment") {
+      const parsed = z.object({ installmentId: id, paid: z.boolean(), paidAt: date.optional() }).safeParse(body.installment);
+      if (!parsed.success) return NextResponse.json({ error: "El estado de la cuota no es válido." }, { status: 400 });
+      return NextResponse.json(await setInstallmentPayment(current, parsed.data));
     }
     if (body?.type === "debt") {
       const parsed = z.object({ id, name: z.string().trim().min(1).max(100), creditor: z.string().trim().min(1).max(100), amount: money, interestRate: z.number().min(0).max(500), minimumPayment: z.number().int().min(0).max(1_000_000_000_000), paymentDueDay: z.number().int().min(1).max(31) }).safeParse(body.debt);
