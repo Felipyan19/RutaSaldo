@@ -49,27 +49,36 @@ export type UpcomingPayment = {
   amount: number;
   dueDate: string;
   kind: "installment" | "debt";
+  overdue: boolean;
 };
 
+function validDate(year: number, month: number, day: number) {
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(Math.max(day, 1), lastDay), 12);
+}
+
 function nextMonthlyDate(day: number, from: Date) {
-  const safeDay = Math.min(Math.max(day, 1), 28);
-  const current = new Date(from.getFullYear(), from.getMonth(), safeDay, 12);
-  if (current < from) current.setMonth(current.getMonth() + 1);
+  let current = validDate(from.getFullYear(), from.getMonth(), day);
+  if (current < from) current = validDate(from.getFullYear(), from.getMonth() + 1, day);
   return current.toISOString().slice(0, 10);
 }
 
 export function deriveUpcomingPayments(state: Phase2State, now = new Date()): UpcomingPayment[] {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
   const installmentPayments = state.installmentPlans.flatMap((plan) => plan.installments
-    .filter((installment) => installment.status === "pending" && new Date(`${installment.dueDate}T12:00:00`) >= today)
-    .map((installment) => ({
-      id: `installment:${installment.id}`,
-      title: `${plan.description} · cuota ${installment.number}/${plan.installmentCount}`,
-      description: "Compra a cuotas",
-      amount: installment.amount,
-      dueDate: installment.dueDate,
-      kind: "installment" as const,
-    })));
+    .filter((installment) => installment.status === "pending")
+    .map((installment) => {
+      const due = new Date(`${installment.dueDate}T12:00:00`);
+      return {
+        id: `installment:${installment.id}`,
+        title: `${plan.description} · cuota ${installment.number}/${plan.installmentCount}`,
+        description: due < today ? "Cuota vencida" : "Compra a cuotas",
+        amount: installment.amount,
+        dueDate: installment.dueDate,
+        kind: "installment" as const,
+        overdue: due < today,
+      };
+    }));
 
   const debtPayments = state.debts
     .filter((debt) => debt.status === "active" && debt.currentBalance > 0)
@@ -80,9 +89,10 @@ export function deriveUpcomingPayments(state: Phase2State, now = new Date()): Up
       amount: Math.min(debt.minimumPayment || debt.currentBalance, debt.currentBalance),
       dueDate: nextMonthlyDate(debt.paymentDueDay, today),
       kind: "debt" as const,
+      overdue: false,
     }));
 
   return [...installmentPayments, ...debtPayments]
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-    .slice(0, 12);
+    .sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.dueDate.localeCompare(b.dueDate))
+    .slice(0, 20);
 }
