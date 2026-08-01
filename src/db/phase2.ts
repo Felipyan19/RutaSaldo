@@ -4,9 +4,12 @@ import { accounts, categories, debtPayments, debts, installmentPlans, installmen
 import { FinanceInputError } from "./finance";
 
 function addMonths(date: string, months: number) {
-  const value = new Date(`${date}T12:00:00Z`);
-  value.setUTCMonth(value.getUTCMonth() + months);
-  return value.toISOString().slice(0, 10);
+  const [year, month, day] = date.split("-").map(Number);
+  const targetMonthIndex = month - 1 + months;
+  const targetYear = year + Math.floor(targetMonthIndex / 12);
+  const normalizedMonth = ((targetMonthIndex % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(targetYear, normalizedMonth + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(targetYear, normalizedMonth, Math.min(day, lastDay), 12)).toISOString().slice(0, 10);
 }
 
 export async function readPhase2State(workspaceId: string) {
@@ -37,6 +40,14 @@ export async function createInstallmentPurchase(workspaceId: string, input: { id
     const remainder = input.totalAmount - base * input.installmentCount;
     await tx.insert(installments).values(Array.from({ length: input.installmentCount }, (_, index) => ({ id: `${input.id}:${index + 1}`, workspaceId, planId: input.id, number: index + 1, amount: base + (index === input.installmentCount - 1 ? remainder : 0), dueDate: addMonths(input.purchaseDate, index + 1), status: "pending" })));
   });
+  return readPhase2State(workspaceId);
+}
+
+export async function setInstallmentPayment(workspaceId: string, input: { installmentId: string; paid: boolean; paidAt?: string }) {
+  const db = getDb();
+  const [installment] = await db.select().from(installments).where(and(eq(installments.id, input.installmentId), eq(installments.workspaceId, workspaceId)));
+  if (!installment) throw new FinanceInputError("La cuota no pertenece al workspace.");
+  await db.update(installments).set({ status: input.paid ? "paid" : "pending", paidAt: input.paid ? (input.paidAt ?? new Date().toISOString().slice(0, 10)) : null }).where(and(eq(installments.id, input.installmentId), eq(installments.workspaceId, workspaceId)));
   return readPhase2State(workspaceId);
 }
 
