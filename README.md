@@ -6,7 +6,7 @@ RutaSaldo es una PWA de finanzas personales orientada inicialmente a Colombia y 
 
 ## Estado actual
 
-Última revisión: **31 de julio de 2026**.
+Última revisión: **1 de agosto de 2026**.
 
 ### Producción
 
@@ -29,6 +29,11 @@ RutaSaldo es una PWA de finanzas personales orientada inicialmente a Colombia y 
 - Historial ordenado por fecha y hora de creación, mostrando primero lo más reciente.
 - Centro interno de notificaciones financieras.
 - Alertas por fecha próxima de pago y utilización alta del cupo.
+- Compras a cuotas como un único gasto con calendario independiente.
+- Marcación y reapertura de cuotas pagadas.
+- Deudas externas, pagos mínimos, vencimientos y abonos.
+- Conciliación manual de un gasto y un ingreso como transferencia enlazada.
+- Próximos pagos y cuotas vencidas con acceso persistente desde el dashboard.
 - OCR de facturas con Gemini, revisión editable y confirmación manual antes de guardar.
 - Reintentos, fallback y manejo específico de errores temporales del proveedor de IA.
 
@@ -40,6 +45,8 @@ RutaSaldo es una PWA de finanzas personales orientada inicialmente a Colombia y 
 - En el historial se muestra una sola representación de cada transferencia.
 - Una compra hecha con tarjeta se registra como gasto y aumenta la deuda.
 - Un pago hacia una tarjeta se registra como transferencia y reduce la deuda.
+- Una compra a cuotas se registra una sola vez como gasto; las cuotas solo representan calendario y estado.
+- Un abono a deuda usa el tipo interno `debt_payment` y no se cuenta como gasto nuevo.
 - Las tarjetas viven en `accounts` con tipo `credit_card`.
 - `credit_card_details` almacena cupo, día de corte, día de pago, últimos cuatro dígitos y tasa.
 - El saldo de las cuentas se reconstruye desde el saldo inicial y el historial de movimientos.
@@ -57,7 +64,7 @@ RutaSaldo es una PWA de finanzas personales orientada inicialmente a Colombia y 
 - [x] Persistencia en PostgreSQL.
 - [x] PWA responsive.
 
-### Fase 2 — Movimiento real del dinero: en ejecución
+### Fase 2 — Movimiento real del dinero: completada
 
 - [x] Transferencias enlazadas.
 - [x] Transferencias excluidas de ingresos y gastos.
@@ -66,12 +73,14 @@ RutaSaldo es una PWA de finanzas personales orientada inicialmente a Colombia y 
 - [x] Pagos de tarjeta sin duplicar gastos.
 - [x] Deuda de tarjetas y patrimonio neto en el dashboard.
 - [x] Alertas básicas de tarjeta.
-- [ ] Conciliación manual de dos movimientos existentes como transferencia.
-- [ ] Compras a una o varias cuotas.
-- [ ] Calendario y estado de cuotas.
-- [ ] Deudas y créditos externos.
-- [ ] Próximos pagos persistidos y visibles en el resumen.
-- [ ] Pruebas de integración para compras, pagos, transferencias, cuotas y deudas.
+- [x] Conciliación manual de dos movimientos existentes como transferencia.
+- [x] Compras a una o varias cuotas.
+- [x] Calendario y estado de cuotas.
+- [x] Marcación y reapertura de cuotas pagadas.
+- [x] Deudas y créditos externos.
+- [x] Próximos pagos y vencidos visibles desde el dashboard.
+- [x] Sincronización inmediata del estado financiero después de operaciones de Fase 2.
+- [x] Pruebas unitarias de calendario, vencidos, límites de pago y fin de mes.
 
 ### Fase 3 — Planeación: pendiente
 
@@ -90,31 +99,6 @@ RutaSaldo es una PWA de finanzas personales orientada inicialmente a Colombia y 
 - [ ] Automatizaciones con n8n.
 - [ ] Asistente financiero con IA.
 
-## Orden de implementación para cerrar la Fase 2
-
-La Fase 2 se cerrará en este orden para conservar consistencia contable:
-
-1. **Compras a cuotas:** plan de cuotas enlazado a una compra original, sin registrar el gasto varias veces.
-2. **Próximos pagos:** calendario derivado de tarjetas, cuotas y deudas persistidas.
-3. **Deudas externas:** saldo, tasa, cuota, vencimiento y estado.
-4. **Conciliación manual:** convertir dos movimientos compatibles en una transferencia enlazada.
-5. **Pruebas financieras:** verificar que ningún flujo duplique ingresos, gastos o deuda.
-
-## Referencias de producto y dominio
-
-La implementación es propia. Los siguientes proyectos se usan para estudiar patrones y comportamiento, no para copiar código:
-
-| Proyecto | Referencia principal |
-|---|---|
-| [Actual Budget](https://github.com/actualbudget/actual) | Transferencias, conciliación, recurrencias y experiencia local-first |
-| [Firefly III](https://github.com/firefly-iii/firefly-iii) | Modelo financiero, cuentas, transacciones, pasivos y API |
-| [Sure](https://github.com/we-promise/sure) | Activos, pasivos, patrimonio y presentación del dashboard |
-| [Cashew](https://github.com/jameskokoska/Cashew) | Registro rápido, experiencia móvil y presupuestos |
-| [Monekin](https://github.com/enrique-lozano/Monekin) | Múltiples monedas, deudas y UX móvil |
-| [Ivy Wallet](https://github.com/Ivy-Apps/ivy-wallet) | Interacciones rápidas para movimientos manuales |
-
-> Antes de reutilizar código se debe revisar la licencia del proyecto de origen. Inspirarse en flujos y decisiones de diseño no equivale a copiar su implementación.
-
 ## Arquitectura actual
 
 RutaSaldo usa un monolito modular con Next.js App Router.
@@ -128,22 +112,12 @@ src/
 │   │   ├── cuentas/
 │   │   ├── movimientos/
 │   │   ├── categorias/
+│   │   ├── obligaciones/
 │   │   └── configuracion/
 │   └── api/
 ├── components/
 ├── db/
 └── lib/
-```
-
-### Flujo de datos
-
-```mermaid
-flowchart LR
-    UI[Next.js UI] --> API[API autenticada]
-    API --> Domain[Lógica financiera]
-    Domain --> DB[(PostgreSQL / Neon)]
-    UI --> OCR[OCR de facturas]
-    OCR --> Gemini[Gemini API]
 ```
 
 ### Seguridad
@@ -153,28 +127,6 @@ flowchart LR
 - Todas las consultas se limitan al `workspaceId` del usuario.
 - Las claves de Neon, Google y Gemini permanecen del lado del servidor.
 - Las respuestas financieras usan `Cache-Control: private, no-store`.
-
-## Modelo financiero actual
-
-| Entidad | Uso actual |
-|---|---|
-| `User` | Identidad autenticada |
-| `Workspace` | Contenedor privado de las finanzas |
-| `Account` | Banco, billetera, efectivo o tarjeta |
-| `CreditCardDetails` | Cupo, corte, pago y tasa |
-| `Transaction` | Ingreso, gasto o lado de transferencia |
-| `Transfer` | Relación entre dos cuentas propias |
-| `Category` | Clasificación de ingresos y gastos |
-
-Entidades que se agregarán para completar la Fase 2:
-
-| Entidad | Responsabilidad |
-|---|---|
-| `InstallmentPlan` | Compra original y número total de cuotas |
-| `Installment` | Calendario, monto y estado de cada cuota |
-| `Debt` | Crédito u obligación externa |
-| `DebtPayment` | Historial y próximos pagos de deuda |
-| `Reconciliation` | Enlace manual entre movimientos existentes |
 
 ## Desarrollo local
 
