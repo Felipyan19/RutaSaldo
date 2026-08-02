@@ -18,6 +18,24 @@ async function workspaceId() {
   return getWorkspaceIdForUser(session.user.id);
 }
 
+function isMissingPhase2Schema(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const cause = "cause" in error ? (error as { cause?: unknown }).cause : undefined;
+  const code = cause && typeof cause === "object" && "code" in cause ? String((cause as { code?: unknown }).code) : "";
+  const message = error instanceof Error ? error.message : String(error);
+  return code === "42P01" || /relation .* does not exist/i.test(message);
+}
+
+function phase2Failure(error: unknown, fallback: string) {
+  if (isMissingPhase2Schema(error)) {
+    return NextResponse.json(
+      { error: "El módulo de obligaciones aún no tiene su esquema de base de datos aplicado.", code: "PHASE2_SCHEMA_MISSING" },
+      { status: 503, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+  return NextResponse.json({ error: fallback }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
+}
+
 export async function GET() {
   try {
     const current = await workspaceId();
@@ -25,7 +43,7 @@ export async function GET() {
     return NextResponse.json(await readPhase2State(current), { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("[phase2] GET failed", error);
-    return NextResponse.json({ error: "No se pudieron cargar cuotas y deudas." }, { status: 500 });
+    return phase2Failure(error, "No se pudieron cargar cuotas y deudas.");
   }
 }
 
@@ -63,6 +81,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Operación de fase 2 no soportada." }, { status: 400 });
   } catch (error) {
     console.error("[phase2] POST failed", error);
-    return NextResponse.json({ error: error instanceof FinanceInputError ? error.message : "No se pudo completar la operación." }, { status: error instanceof FinanceInputError ? 400 : 500 });
+    if (error instanceof FinanceInputError) return NextResponse.json({ error: error.message }, { status: 400 });
+    return phase2Failure(error, "No se pudo completar la operación.");
   }
 }
