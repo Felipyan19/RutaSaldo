@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowRightLeft, Bell, CheckCheck, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Menu, Plus, ScanLine, Settings, Tags, WalletCards } from "lucide-react";
+import { ArrowRightLeft, Bell, CheckCheck, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Menu, Mic, Plus, ScanLine, Settings, Tags, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { logOut } from "@/app/actions";
 import { Account, Transaction, Transfer } from "@/lib/finance";
@@ -10,6 +10,7 @@ import { buildFinanceNotifications } from "@/lib/notifications";
 import { useFinance } from "./finance-provider";
 import { AccountForm, TransactionForm, TransferForm } from "@/components/forms";
 import { ReceiptScanner } from "@/components/ai/receipt-scanner";
+import { VoiceFinanceCapture } from "@/components/ai/voice-finance-capture";
 import { BrandMark } from "@/components/brand-mark";
 import { RutaSaldoLoader } from "@/components/rutasaldo-loader";
 
@@ -22,7 +23,7 @@ const navigation = [
 ] as const;
 
 type User = { name?: string | null; email?: string | null; image?: string | null };
-type ModalName = "transaction" | "transfer" | "account" | "receipt" | null;
+type ModalName = "transaction" | "transfer" | "account" | "receipt" | "voice" | null;
 
 export function DashboardShell({ user, children }: { user: User; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -140,6 +141,7 @@ export function DashboardShell({ user, children }: { user: User; children: React
                     <button type="button" aria-label="Cerrar acciones rápidas" onClick={() => setQuickMenu(false)} className="fixed inset-0 z-20 cursor-default bg-transparent" />
                     <div role="menu" className="absolute right-0 top-12 z-30 w-64 overflow-hidden rounded-2xl border border-[#dce1da] bg-white p-2 shadow-[0_18px_50px_rgba(23,35,30,.16)]">
                       <button type="button" role="menuitem" onClick={() => openModal("transaction")} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-[#f1f4ef]"><CircleDollarSign size={18} className="text-[#4f6c5c]" /><span><span className="block">Ingreso o gasto</span><span className="mt-0.5 block text-xs font-normal text-[#6b786f]">Registrar manualmente</span></span></button>
+                      <button type="button" role="menuitem" onClick={() => openModal("voice")} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-[#f1f4ef]"><Mic size={18} className="text-[#4f6c5c]" /><span><span className="block">Registrar por voz</span><span className="mt-0.5 block text-xs font-normal text-[#6b786f]">Gemini completa el borrador</span></span></button>
                       <button type="button" role="menuitem" onClick={() => openModal("receipt")} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-[#f1f4ef]"><ScanLine size={18} className="text-[#4f6c5c]" /><span><span className="block">Escanear factura</span><span className="mt-0.5 block text-xs font-normal text-[#6b786f]">OCR con revisión previa</span></span></button>
                       <button type="button" role="menuitem" disabled={state.accounts.length < 2} onClick={() => openModal("transfer")} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-[#f1f4ef] disabled:opacity-45"><ArrowRightLeft size={18} className="text-[#4f6c5c]" /><span><span className="block">Transferir entre cuentas</span><span className="mt-0.5 block text-xs font-normal text-[#6b786f]">Banco, billetera o tarjeta</span></span></button>
                       <button type="button" role="menuitem" onClick={() => openModal("account")} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-[#f1f4ef]"><WalletCards size={18} className="text-[#4f6c5c]" /><span><span className="block">Nueva cuenta</span><span className="mt-0.5 block text-xs font-normal text-[#6b786f]">Agregar banco o billetera</span></span></button>
@@ -161,6 +163,7 @@ export function DashboardShell({ user, children }: { user: User; children: React
 
       {modal === "transaction" && <TransactionForm accounts={state.accounts} categories={state.categories} onSave={addTransaction} onClose={() => setModal(null)} />}
       {modal === "receipt" && <ReceiptScanner accounts={state.accounts} categories={state.categories} onSave={addTransaction} onClose={() => setModal(null)} />}
+      {modal === "voice" && <VoiceFinanceCapture accounts={state.accounts} categories={state.categories} onSaveTransaction={addTransaction} onSaveTransfer={addTransfer} onClose={() => setModal(null)} />}
       {modal === "transfer" && <TransferForm accounts={state.accounts} onSave={addTransfer} onClose={() => setModal(null)} />}
       {modal === "account" && <AccountForm onSave={addAccount} onClose={() => setModal(null)} />}
     </div>
