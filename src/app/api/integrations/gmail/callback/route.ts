@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         ${connectionId}, ${workspaceId}, 'gmail', ${profile.emailAddress.toLowerCase()}, 'active',
         ${encryptedRefreshToken}, 1, ${profile.historyId ?? null}, now(), now()
       )
-      ON CONFLICT (workspace_id, lower(email)) DO UPDATE SET
+      ON CONFLICT (workspace_id, (lower(email))) DO UPDATE SET
         status = 'active',
         encrypted_refresh_token = EXCLUDED.encrypted_refresh_token,
         token_key_version = EXCLUDED.token_key_version,
