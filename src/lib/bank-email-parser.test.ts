@@ -19,6 +19,20 @@ describe("parseBankEmail", () => {
     expect(shouldAutoImport(parsed)).toBe(true);
   });
 
+  it("extracts the explicit RappiPay merchant instead of text from the subject", () => {
+    const parsed = parseBankEmail(
+      "Resumen de compra",
+      "La compra con tu RappiCuenta fue exitosa.\nMonto $23.990,00\nMétodo de pago Tarjeta digital *6481\nNo. de referencia 110131085\nComercio EDS PRIMAX SAN DIEGO ENVIGADO CO\nFecha de la transacción 03 de agosto de 2026",
+      "noreply@rappipay.co",
+    );
+
+    expect(parsed.institution).toBe("rappipay");
+    expect(parsed.accountLastFour).toBe("6481");
+    expect(parsed.reference).toBe("110131085");
+    expect(parsed.merchant).toBe("EDS PRIMAX SAN DIEGO ENVIGADO CO");
+    expect(parsed.description).toBe("EDS PRIMAX SAN DIEGO ENVIGADO CO");
+  });
+
   it("does not auto import rejected RappiCard operations", () => {
     const parsed = parseBankEmail(
       "Compra rechazada RappiCard",
