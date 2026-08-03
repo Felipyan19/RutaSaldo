@@ -8,6 +8,10 @@ import {
   shouldAutoImport,
   type ParsedBankEmail,
 } from "@/lib/bank-email-parser";
+import {
+  decryptRefreshToken,
+  gmailAccessTokenFromRefreshToken,
+} from "@/lib/gmail-oauth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -24,33 +28,6 @@ function authorized(request: NextRequest) {
   const supplied = Buffer.from(header.slice(7));
   const expected = Buffer.from(secret);
   return supplied.length === expected.length && timingSafeEqual(supplied, expected);
-}
-
-async function gmailAccessToken() {
-  const clientId = process.env.GMAIL_CLIENT_ID;
-  const clientSecret = process.env.GMAIL_CLIENT_SECRET;
-  const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
-  if (!clientId || !clientSecret || !refreshToken) throw new Error("Gmail sync is not configured");
-
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const reason = response.status === 400 ? "Gmail refresh token is invalid or expired" : "Unable to refresh Gmail access token";
-    throw new Error(reason);
-  }
-  const payload = (await response.json()) as { access_token?: string };
-  if (!payload.access_token) throw new Error("Gmail access token missing");
-  return payload.access_token;
 }
 
 function decodeBase64Url(value?: string) {
@@ -77,21 +54,6 @@ function htmlToText(html: string) {
     .trim();
 }
 
-function extractBody(payload: GmailPayload): string {
-  const plain: string[] = [];
-  const html: string[] = [];
-  const visit = (part: GmailPayload) => {
-    if (part.body?.data) {
-      const decoded = decodeBase64Url(part.body.data);
-      if (part.mimeType === "text/html") html.push(htmlToText(decoded));
-      else if (part.mimeType === "text/plain" || !part.mimeType) plain.push(decoded);
-    }
-    for (const nested of part.parts ?? []) visit(nested);
-  };
-  visit(payload);
-  return (plain.join("\n") || html.join("\n")).trim();
-}
-
 type GmailHeader = { name: string; value: string };
 type GmailPayload = {
   mimeType?: string;
@@ -106,6 +68,27 @@ type GmailMessage = {
   internalDate?: string;
   payload?: GmailPayload;
 };
+type GmailConnection = {
+  id: string;
+  workspace_id: string;
+  encrypted_refresh_token: string;
+  last_history_id: string | null;
+};
+
+function extractBody(payload: GmailPayload): string {
+  const plain: string[] = [];
+  const html: string[] = [];
+  const visit = (part: GmailPayload) => {
+    if (part.body?.data) {
+      const decoded = decodeBase64Url(part.body.data);
+      if (part.mimeType === "text/html") html.push(htmlToText(decoded));
+      else if (part.mimeType === "text/plain" || !part.mimeType) plain.push(decoded);
+    }
+    for (const nested of part.parts ?? []) visit(nested);
+  };
+  visit(payload);
+  return (plain.join("\n") || html.join("\n")).trim();
+}
 
 function header(headers: GmailHeader[] | undefined, name: string) {
   return headers?.find((item) => item.name.toLowerCase() === name.toLowerCase())?.value ?? "";
@@ -128,10 +111,7 @@ function domainAllowed(domain: string) {
 
 function authenticationPassed(authenticationResults: string, domain: string) {
   const normalized = authenticationResults.toLowerCase();
-  const dkimPass = /\bdkim=pass\b/.test(normalized);
-  const spfPass = /\bspf=pass\b/.test(normalized);
-  const alignedDomain = normalized.includes(domain);
-  return (dkimPass || spfPass) && alignedDomain;
+  return (/\bdkim=pass\b/.test(normalized) || /\bspf=pass\b/.test(normalized)) && normalized.includes(domain);
 }
 
 async function gmailJson<T>(token: string, url: string): Promise<T> {
@@ -166,7 +146,7 @@ async function listMessageIds(token: string, lastHistoryId: string | null) {
       } while (pageToken);
       return { ids: [...ids], historyId: newestHistoryId ?? lastHistoryId };
     } catch {
-      // Gmail expires old history IDs. Fall back to a bounded search and reset the cursor.
+      // Gmail expires old history IDs. Use a bounded search and replace the cursor.
     }
   }
 
@@ -182,32 +162,34 @@ async function listMessageIds(token: string, lastHistoryId: string | null) {
 
 async function resolveAccount(db: ReturnType<typeof getDb>, workspaceId: string, parsed: ParsedBankEmail) {
   const institutionNames: Record<ParsedBankEmail["institution"], string[]> = {
-    bancolombia: ["Bancolombia"],
-    nequi: ["Nequi"],
-    rappipay: ["RappiPay"],
-    rappicard: ["Davivienda S.A.", "RappiPay"],
-    wise: ["Wise"],
+    bancolombia: ["bancolombia"],
+    nequi: ["nequi"],
+    rappipay: ["rappipay"],
+    rappicard: ["davivienda s.a.", "rappipay"],
+    wise: ["wise"],
     unknown: [],
   };
-  const institutions = institutionNames[parsed.institution];
-  if (!institutions.length) return null;
+  const expectedInstitutions = institutionNames[parsed.institution];
+  if (!expectedInstitutions.length) return null;
 
-  const rows = await db.execute<{ id: string }>(sql`
-    SELECT a.id
+  const result = await db.execute<{ id: string; institution: string | null; last_four_digits: string | null }>(sql`
+    SELECT a.id, a.institution, ccd.last_four_digits
     FROM accounts a
     LEFT JOIN credit_card_details ccd ON ccd.account_id = a.id
     WHERE a.workspace_id = ${workspaceId}
-      AND a.institution = ANY(${institutions})
-      AND (${parsed.accountLastFour}::text IS NULL OR ccd.last_four_digits = ${parsed.accountLastFour})
-    ORDER BY CASE WHEN ccd.last_four_digits = ${parsed.accountLastFour} THEN 0 ELSE 1 END
-    LIMIT 2
   `);
-  return rows.rows.length === 1 ? rows.rows[0].id : null;
+  const matches = result.rows.filter((account) => {
+    const institution = account.institution?.trim().toLowerCase() ?? "";
+    const institutionMatches = expectedInstitutions.includes(institution);
+    const digitsMatch = !parsed.accountLastFour || account.last_four_digits === parsed.accountLastFour;
+    return institutionMatches && digitsMatch;
+  });
+  return matches.length === 1 ? matches[0].id : null;
 }
 
 function transactionKind(parsed: ParsedBankEmail) {
-  if (parsed.kind === "transfer_received" || parsed.kind === "refund") return "income";
-  if (["purchase", "transfer_sent", "withdrawal"].includes(parsed.kind)) return "expense";
+  if (parsed.kind === "refund") return "income";
+  if (["purchase", "withdrawal"].includes(parsed.kind)) return "expense";
   return null;
 }
 
@@ -230,10 +212,12 @@ async function processMessage(
   const rawBodyHash = createHash("sha256").update(`${sender}\n${subject}\n${body}`).digest("hex");
   const movementFingerprint = createHash("sha256").update(normalizedMovementFingerprint(parsed)).digest("hex");
   const accountId = await resolveAccount(db, workspaceId, parsed);
-  const canImport = shouldAutoImport(parsed) && accountId !== null && parsed.kind !== "card_payment";
+  const unsafeAutomaticKinds = ["card_payment", "transfer_sent", "transfer_received"];
+  const canImport = shouldAutoImport(parsed) && accountId !== null && !unsafeAutomaticKinds.includes(parsed.kind);
   const ignoredMovement = parsed.status === "pending" || parsed.status === "rejected" || parsed.status === "reversed";
   const initialStatus = ignoredMovement ? "ignored" : canImport ? "received" : "pending_review";
   const emailId = randomUUID();
+  const receivedAt = new Date(Number(message.internalDate ?? Date.now()));
 
   const inserted = await db.execute<{ id: string }>(sql`
     INSERT INTO bank_email_messages (
@@ -243,7 +227,7 @@ async function processMessage(
       confidence_basis_points, parsed_payload, account_id, processed_at
     ) VALUES (
       ${emailId}, ${workspaceId}, ${connectionId}, ${message.id}, ${message.threadId ?? null}, ${message.historyId ?? null},
-      ${sender}, ${domain}, ${authResults || null}, ${subject}, ${new Date(Number(message.internalDate ?? Date.now()))},
+      ${sender}, ${domain}, ${authResults || null}, ${subject}, ${receivedAt},
       ${rawBodyHash}, ${movementFingerprint}, ${initialStatus}, ${parsed.status},
       ${Math.round(parsed.confidence * 10000)}, ${JSON.stringify(parsed)}, ${accountId},
       ${ignoredMovement ? new Date() : null}
@@ -259,7 +243,7 @@ async function processMessage(
   if (!kind) return "pending_review" as const;
   const categoryId = parsed.categorySlug ? `${workspaceId}:${parsed.categorySlug}` : null;
   const transactionId = randomUUID();
-  const date = new Date(Number(message.internalDate ?? Date.now())).toISOString().slice(0, 10);
+  const date = receivedAt.toISOString().slice(0, 10);
 
   await db.transaction(async (tx) => {
     const duplicate = await tx.execute<{ id: string }>(sql`
@@ -268,15 +252,11 @@ async function processMessage(
       WHERE workspace_id = ${workspaceId}
         AND movement_fingerprint = ${movementFingerprint}
         AND transaction_id IS NOT NULL
-        AND received_at BETWEEN ${new Date(Number(message.internalDate ?? Date.now()) - 36e5)}
-                            AND ${new Date(Number(message.internalDate ?? Date.now()) + 36e5)}
+        AND received_at BETWEEN ${new Date(receivedAt.getTime() - 36e5)} AND ${new Date(receivedAt.getTime() + 36e5)}
       LIMIT 1
     `);
     if (duplicate.rows.length > 0) {
-      await tx.execute(sql`
-        UPDATE bank_email_messages SET processing_status = 'duplicate', processed_at = now()
-        WHERE id = ${emailId}
-      `);
+      await tx.execute(sql`UPDATE bank_email_messages SET processing_status = 'duplicate', processed_at = now() WHERE id = ${emailId}`);
       return;
     }
 
@@ -291,46 +271,27 @@ async function processMessage(
     `);
   });
 
-  const state = await db.execute<{ processing_status: string }>(sql`
-    SELECT processing_status FROM bank_email_messages WHERE id = ${emailId}
-  `);
+  const state = await db.execute<{ processing_status: string }>(sql`SELECT processing_status FROM bank_email_messages WHERE id = ${emailId}`);
   return state.rows[0]?.processing_status === "imported" ? "imported" as const : "duplicate" as const;
 }
 
-async function sync(request: NextRequest) {
-  if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const workspaceId = process.env.BANK_EMAIL_WORKSPACE_ID;
-  const connectionId = process.env.BANK_EMAIL_CONNECTION_ID ?? "gmail-primary";
-  const gmailAddress = process.env.BANK_EMAIL_ADDRESS;
-  if (!workspaceId || !gmailAddress || ALLOWED_SENDERS.length === 0) {
-    return NextResponse.json({ error: "Bank email sync is not fully configured" }, { status: 503 });
-  }
-
-  const db = getDb();
+async function syncConnection(db: ReturnType<typeof getDb>, connection: GmailConnection) {
   const runId = randomUUID();
   await db.execute(sql`
-    INSERT INTO bank_email_connections (id, workspace_id, provider, email)
-    VALUES (${connectionId}, ${workspaceId}, 'gmail', ${gmailAddress.toLowerCase()})
-    ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, status = 'active', updated_at = now()
-  `);
-  await db.execute(sql`
     INSERT INTO bank_email_sync_runs (id, workspace_id, connection_id)
-    VALUES (${runId}, ${workspaceId}, ${connectionId})
+    VALUES (${runId}, ${connection.workspace_id}, ${connection.id})
   `);
 
   try {
-    const connection = await db.execute<{ last_history_id: string | null }>(sql`
-      SELECT last_history_id FROM bank_email_connections WHERE id = ${connectionId}
-    `);
-    const token = await gmailAccessToken();
-    const listed = await listMessageIds(token, connection.rows[0]?.last_history_id ?? null);
+    const refreshToken = decryptRefreshToken(connection.encrypted_refresh_token);
+    const token = await gmailAccessTokenFromRefreshToken(refreshToken);
+    const listed = await listMessageIds(token, connection.last_history_id);
     const counters = { scanned: 0, stored: 0, imported: 0, pendingReview: 0, ignored: 0, duplicate: 0 };
 
     for (const id of listed.ids) {
       const message = await gmailJson<GmailMessage>(token, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`);
       counters.scanned += 1;
-      const result = await processMessage(db, workspaceId, connectionId, message);
+      const result = await processMessage(db, connection.workspace_id, connection.id, message);
       if (result !== "ignored" || domainAllowed(senderDomain(senderAddress(header(message.payload?.headers, "From"))))) counters.stored += 1;
       if (result === "imported") counters.imported += 1;
       else if (result === "pending_review") counters.pendingReview += 1;
@@ -349,20 +310,40 @@ async function sync(request: NextRequest) {
     await db.execute(sql`
       UPDATE bank_email_connections
       SET last_synced_at = now(), last_history_id = COALESCE(${listed.historyId}, last_history_id), updated_at = now()
-      WHERE id = ${connectionId}
+      WHERE id = ${connection.id}
     `);
-    return NextResponse.json(counters);
+    return { connectionId: connection.id, workspaceId: connection.workspace_id, ...counters };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown email sync error";
     await db.execute(sql`
       UPDATE bank_email_sync_runs SET finished_at = now(), status = 'failed', error_message = ${message}
       WHERE id = ${runId}
     `);
-    if (/refresh token/i.test(message)) {
-      await db.execute(sql`UPDATE bank_email_connections SET status = 'reauth_required', updated_at = now() WHERE id = ${connectionId}`);
+    if (/refresh token|invalid_grant/i.test(message)) {
+      await db.execute(sql`UPDATE bank_email_connections SET status = 'reauth_required', updated_at = now() WHERE id = ${connection.id}`);
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return { connectionId: connection.id, workspaceId: connection.workspace_id, error: message };
   }
+}
+
+async function sync(request: NextRequest) {
+  if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (ALLOWED_SENDERS.length === 0) return NextResponse.json({ error: "BANK_EMAIL_ALLOWED_SENDERS is not configured" }, { status: 503 });
+
+  const db = getDb();
+  const result = await db.execute<GmailConnection>(sql`
+    SELECT id, workspace_id, encrypted_refresh_token, last_history_id
+    FROM bank_email_connections
+    WHERE provider = 'gmail' AND status = 'active' AND encrypted_refresh_token IS NOT NULL
+    ORDER BY updated_at ASC
+  `);
+
+  const connections = result.rows;
+  if (connections.length === 0) return NextResponse.json({ connections: 0, results: [] });
+
+  const results = [];
+  for (const connection of connections) results.push(await syncConnection(db, connection));
+  return NextResponse.json({ connections: connections.length, results });
 }
 
 export async function GET(request: NextRequest) {
