@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Inbox, Mail, RefreshCw, Unplug } from "lucide-react";
+import { Database, Inbox, LockKeyhole, LogOut, Mail, RefreshCw, ShieldCheck, Unplug, WalletCards } from "lucide-react";
 import { useFinance } from "./finance-provider";
 import { logOut } from "@/app/actions";
 
@@ -12,6 +12,11 @@ type GmailConnection = {
   status: string | null;
   lastSyncedAt: string | null;
 };
+
+function formatSyncDate(value: string | null) {
+  if (!value) return "Aún no se ha sincronizado";
+  return `Última sincronización: ${new Date(value).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}`;
+}
 
 export function SettingsPage() {
   const { state, clearState, saving } = useFinance();
@@ -43,69 +48,81 @@ export function SettingsPage() {
   }
 
   return (
-    <section className="max-w-3xl">
+    <section className="mx-auto max-w-7xl">
       <div className="mb-7">
         <h2 className="text-2xl font-semibold tracking-tight">Configuración</h2>
-        <p className="mt-1 text-sm text-[#5e6d63]">Administra tu espacio, integraciones y datos de RutaSaldo.</p>
+        <p className="mt-1 text-sm text-[#5e6d63]">Gestiona tu espacio, conexiones y privacidad.</p>
       </div>
 
-      <div className="space-y-4">
-        <div className="rounded-3xl border border-[#e0e4dd] bg-white p-6">
-          <h3 className="font-semibold">Tu espacio</h3>
-          <p className="mt-2 text-sm text-[#5e6d63]">{state.workspaceName}</p>
-          <p className="mt-1 text-xs text-[#5e6d63]">{state.accounts.length} cuentas · {state.transactions.length} movimientos</p>
-        </div>
-
-        <div className="rounded-3xl border border-[#d8e4dc] bg-white p-6">
+      <div className="grid gap-4 xl:grid-cols-12">
+        <article className="rounded-3xl border border-[#e0e4dd] bg-white p-6 xl:col-span-4">
           <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-[#edf4ef] p-3 text-[#486356]"><Mail size={20} /></div>
-            <div className="min-w-0 flex-1">
-              <h3 className="font-semibold">Sincronización con Gmail</h3>
-              <p className="mt-2 text-sm leading-6 text-[#5e6d63]">
-                Conecta Gmail con permiso de solo lectura para detectar notificaciones bancarias. RutaSaldo nunca solicita tu contraseña y guarda el token de acceso cifrado.
-              </p>
-
-              {gmailLoading ? (
-                <p className="mt-4 flex items-center gap-2 text-sm text-[#5e6d63]"><RefreshCw size={15} className="animate-spin" /> Consultando conexión…</p>
-              ) : gmail?.connected ? (
-                <div className="mt-4 rounded-2xl bg-[#f1f6f2] p-4">
-                  <p className="text-sm font-semibold text-[#315443]">Gmail conectado</p>
-                  <p className="mt-1 truncate text-sm text-[#5e6d63]">{gmail.email}</p>
-                  {gmail.status === "reauth_required" && <p className="mt-2 text-sm text-[#8a5a22]">Google requiere que vuelvas a autorizar esta cuenta.</p>}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Link href="/bandeja" className="flex items-center gap-2 rounded-xl bg-[#17231e] px-4 py-2.5 text-sm font-semibold text-white"><Inbox size={15} />Abrir bandeja</Link>
-                    <a href="/api/integrations/gmail/connect" className="rounded-xl border border-[#bfd0c5] px-4 py-2.5 text-sm font-semibold text-[#315443]">Reconectar Gmail</a>
-                    <button type="button" onClick={disconnectGmail} disabled={disconnecting} className="flex items-center gap-2 rounded-xl border border-[#d9b8ae] px-4 py-2.5 text-sm font-semibold text-[#754638] disabled:opacity-50"><Unplug size={15} />{disconnecting ? "Desconectando…" : "Desconectar"}</button>
-                  </div>
-                </div>
-              ) : (
-                <a href="/api/integrations/gmail/connect" className="mt-4 inline-flex rounded-xl bg-[#17231e] px-4 py-2.5 text-sm font-semibold text-white">Conectar Gmail</a>
-              )}
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#eef3ef] text-[#486356]"><WalletCards size={20} /></span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[.12em] text-[#748178]">Espacio activo</p>
+              <h3 className="mt-1 truncate text-lg font-semibold">{state.workspaceName}</h3>
+              <p className="mt-2 text-sm text-[#5e6d63]">{state.accounts.length} cuentas · {state.transactions.length} movimientos</p>
             </div>
           </div>
-        </div>
+        </article>
 
-        <div className="rounded-3xl border border-[#e0e4dd] bg-white p-6">
-          <h3 className="font-semibold">Privacidad</h3>
-          <p className="mt-2 text-sm leading-6 text-[#5e6d63]">Consulta cómo RutaSaldo trata los datos básicos compartidos durante el registro con Google.</p>
-          <Link href="/privacidad" className="mt-4 inline-block text-sm font-semibold text-[#587164] underline underline-offset-2">Leer aviso de privacidad</Link>
-        </div>
-
-        <div className="rounded-3xl border border-[#ead0c8] bg-[#fff8f5] p-6">
-          <h3 className="font-semibold text-[#754638]">Zona de datos</h3>
-          <p className="mt-2 text-sm leading-6 text-[#754638]">Elimina tus cuentas y movimientos del workspace. Tu usuario y sesión permanecerán activos.</p>
-          {confirming ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" onClick={clear} disabled={saving} className="rounded-xl bg-[#9a4f3e] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Sí, limpiar datos</button>
-              <button type="button" onClick={() => setConfirming(false)} className="rounded-xl border border-[#d9b8ae] px-4 py-2.5 text-sm font-semibold text-[#754638]">Cancelar</button>
+        <article className="rounded-3xl border border-[#d8e4dc] bg-white p-6 xl:col-span-8">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#edf4ef] text-[#486356]"><Mail size={20} /></span>
+              <div className="min-w-0">
+                <h3 className="font-semibold">Correos bancarios</h3>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-[#5e6d63]">RutaSaldo lee notificaciones bancarias con permiso de solo lectura y guarda la autorización cifrada.</p>
+              </div>
             </div>
-          ) : <button type="button" onClick={() => setConfirming(true)} className="mt-4 rounded-xl border border-[#d9b8ae] px-4 py-2.5 text-sm font-semibold text-[#754638]">Limpiar cuentas y movimientos</button>}
-        </div>
 
-        <div className="rounded-3xl border border-[#e0e4dd] bg-white p-6">
-          <h3 className="font-semibold">Sesión</h3>
-          <form action={logOut} className="mt-4"><button type="submit" className="rounded-xl bg-[#17231e] px-4 py-2.5 text-sm font-semibold text-white">Cerrar sesión</button></form>
-        </div>
+            {!gmailLoading && gmail?.connected && (
+              <span className="inline-flex w-fit items-center gap-2 rounded-full bg-[#edf7ef] px-3 py-1.5 text-xs font-semibold text-[#315443]"><ShieldCheck size={14} />Conectado</span>
+            )}
+          </div>
+
+          {gmailLoading ? (
+            <p className="mt-5 flex items-center gap-2 text-sm text-[#5e6d63]"><RefreshCw size={15} className="animate-spin" />Consultando conexión…</p>
+          ) : gmail?.connected ? (
+            <div className="mt-5 grid gap-4 rounded-2xl bg-[#f5f8f5] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#315443]">{gmail.email}</p>
+                <p className="mt-1 text-xs text-[#6b786f]">{formatSyncDate(gmail.lastSyncedAt)}</p>
+                {gmail.status === "reauth_required" && <p className="mt-2 text-sm font-medium text-[#8a5a22]">Google requiere una nueva autorización.</p>}
+              </div>
+              <div className="flex flex-wrap gap-2 md:justify-end">
+                <Link href="/bandeja" className="flex items-center gap-2 rounded-xl bg-[#17231e] px-4 py-2.5 text-sm font-semibold text-white"><Inbox size={15} />Ver bandeja</Link>
+                <a href="/api/integrations/gmail/connect" className="rounded-xl border border-[#bfd0c5] bg-white px-4 py-2.5 text-sm font-semibold text-[#315443]">Reconectar</a>
+                <button type="button" onClick={disconnectGmail} disabled={disconnecting} className="flex items-center gap-2 rounded-xl border border-[#d9b8ae] bg-white px-4 py-2.5 text-sm font-semibold text-[#754638] disabled:opacity-50"><Unplug size={15} />{disconnecting ? "Desconectando…" : "Desconectar"}</button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-[#f5f8f5] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div><p className="text-sm font-semibold">Gmail no está conectado</p><p className="mt-1 text-xs text-[#6b786f]">Conéctalo para detectar compras y transferencias notificadas por correo.</p></div>
+              <a href="/api/integrations/gmail/connect" className="inline-flex w-fit rounded-xl bg-[#17231e] px-4 py-2.5 text-sm font-semibold text-white">Conectar Gmail</a>
+            </div>
+          )}
+        </article>
+
+        <article className="rounded-3xl border border-[#e0e4dd] bg-white p-6 xl:col-span-4">
+          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#eef3ef] text-[#486356]"><LockKeyhole size={20} /></span><div><h3 className="font-semibold">Privacidad</h3><p className="mt-1 text-sm leading-6 text-[#5e6d63]">Consulta qué datos usa RutaSaldo y cómo protege tu información.</p></div></div>
+          <Link href="/privacidad" className="mt-5 inline-flex text-sm font-semibold text-[#587164] underline underline-offset-4">Ver aviso de privacidad</Link>
+        </article>
+
+        <article className="rounded-3xl border border-[#e0e4dd] bg-white p-6 xl:col-span-4">
+          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#eef3ef] text-[#486356]"><LogOut size={20} /></span><div><h3 className="font-semibold">Sesión</h3><p className="mt-1 text-sm leading-6 text-[#5e6d63]">Cierra tu sesión en este dispositivo.</p></div></div>
+          <form action={logOut} className="mt-5"><button type="submit" className="rounded-xl border border-[#cfd7d1] bg-white px-4 py-2.5 text-sm font-semibold text-[#25372e]">Cerrar sesión</button></form>
+        </article>
+
+        <article className="rounded-3xl border border-[#ead0c8] bg-[#fff8f5] p-6 xl:col-span-4">
+          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#fbe9e3] text-[#8a4c3c]"><Database size={20} /></span><div><h3 className="font-semibold text-[#754638]">Eliminar datos financieros</h3><p className="mt-1 text-sm leading-6 text-[#754638]">Borra cuentas y movimientos del espacio. Tu usuario seguirá activo.</p></div></div>
+          {confirming ? (
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button type="button" onClick={clear} disabled={saving} className="rounded-xl bg-[#9a4f3e] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Confirmar eliminación</button>
+              <button type="button" onClick={() => setConfirming(false)} className="rounded-xl border border-[#d9b8ae] bg-white px-4 py-2.5 text-sm font-semibold text-[#754638]">Cancelar</button>
+            </div>
+          ) : <button type="button" onClick={() => setConfirming(true)} className="mt-5 rounded-xl border border-[#d9b8ae] bg-white px-4 py-2.5 text-sm font-semibold text-[#754638]">Eliminar datos</button>}
+        </article>
       </div>
     </section>
   );
