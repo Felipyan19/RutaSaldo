@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Mail, RefreshCw, Unplug } from "lucide-react";
+import { Inbox, Mail, RefreshCw, Unplug } from "lucide-react";
 import { useFinance } from "./finance-provider";
 import { logOut } from "@/app/actions";
 
@@ -73,6 +73,7 @@ export function SettingsPage() {
                   <p className="mt-1 truncate text-sm text-[#5e6d63]">{gmail.email}</p>
                   {gmail.status === "reauth_required" && <p className="mt-2 text-sm text-[#8a5a22]">Google requiere que vuelvas a autorizar esta cuenta.</p>}
                   <div className="mt-4 flex flex-wrap gap-2">
+                    <Link href="/bandeja" className="flex items-center gap-2 rounded-xl bg-[#17231e] px-4 py-2.5 text-sm font-semibold text-white"><Inbox size={15} />Abrir bandeja</Link>
                     <a href="/api/integrations/gmail/connect" className="rounded-xl border border-[#bfd0c5] px-4 py-2.5 text-sm font-semibold text-[#315443]">Reconectar Gmail</a>
                     <button type="button" onClick={disconnectGmail} disabled={disconnecting} className="flex items-center gap-2 rounded-xl border border-[#d9b8ae] px-4 py-2.5 text-sm font-semibold text-[#754638] disabled:opacity-50"><Unplug size={15} />{disconnecting ? "Desconectando…" : "Desconectar"}</button>
                   </div>
