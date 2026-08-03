@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Inbox, RefreshCw, ShieldAlert, X } from "lucide-react";
 
+type InboxAccount = { id: string; name: string; institution: string; kind: string };
 type InboxItem = {
   id: string;
   subject: string;
@@ -26,32 +27,9 @@ type InboxItem = {
   };
 };
 
-const filters = [
-  ["all", "Todos"],
-  ["pending_review", "Por revisar"],
-  ["imported", "Importados"],
-  ["ignored", "Ignorados"],
-  ["duplicate", "Duplicados"],
-] as const;
-
-const statusLabels: Record<string, string> = {
-  pending_review: "Por revisar",
-  imported: "Importado",
-  ignored: "Ignorado",
-  duplicate: "Duplicado",
-  received: "Recibido",
-  failed: "Falló",
-};
-
-const kindLabels: Record<string, string> = {
-  purchase: "Compra",
-  withdrawal: "Retiro",
-  refund: "Devolución",
-  transfer_sent: "Transferencia enviada",
-  transfer_received: "Transferencia recibida",
-  card_payment: "Pago de tarjeta",
-  unknown: "Sin clasificar",
-};
+const filters = [["all", "Todos"], ["pending_review", "Por revisar"], ["imported", "Importados"], ["ignored", "Ignorados"], ["duplicate", "Duplicados"]] as const;
+const statusLabels: Record<string, string> = { pending_review: "Por revisar", imported: "Importado", ignored: "Ignorado", duplicate: "Duplicado", received: "Recibido", failed: "Falló" };
+const kindLabels: Record<string, string> = { purchase: "Compra", withdrawal: "Retiro", refund: "Devolución", transfer_sent: "Transferencia enviada", transfer_received: "Transferencia recibida", card_payment: "Pago de tarjeta", unknown: "Sin clasificar" };
 
 function money(value?: number | null) {
   return typeof value === "number" ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value) : "Monto no detectado";
@@ -59,6 +37,7 @@ function money(value?: number | null) {
 
 export function EmailInboxPage() {
   const [items, setItems] = useState<InboxItem[]>([]);
+  const [accounts, setAccounts] = useState<InboxAccount[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number][0]>("pending_review");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -74,6 +53,7 @@ export function EmailInboxPage() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No se pudo cargar la bandeja");
       setItems(payload.items ?? []);
+      setAccounts(payload.accounts ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "No se pudo cargar la bandeja");
     } finally {
@@ -81,15 +61,19 @@ export function EmailInboxPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    const heading = document.querySelector("main > header h1");
+    const previous = heading?.textContent;
+    if (heading) heading.textContent = "Bandeja bancaria";
+    return () => { if (heading && previous) heading.textContent = previous; };
+  }, []);
 
   const visible = useMemo(() => filter === "all" ? items : items.filter((item) => item.processing_status === filter), [filter, items]);
   const pendingCount = items.filter((item) => item.processing_status === "pending_review").length;
 
   async function syncNow() {
-    setSyncing(true);
-    setError(null);
-    setNotice(null);
+    setSyncing(true); setError(null); setNotice(null);
     try {
       const response = await fetch("/api/finance/email-sync/manual", { method: "POST" });
       const payload = await response.json();
@@ -98,32 +82,33 @@ export function EmailInboxPage() {
       const pending = (payload.results ?? []).reduce((total: number, item: { pendingReview?: number }) => total + (item.pendingReview ?? 0), 0);
       setNotice(scanned ? `Se revisaron ${scanned} correos. ${pending} quedaron por revisar.` : "Gmail está al día. No se encontraron correos nuevos.");
       await load();
-    } catch (syncError) {
-      setError(syncError instanceof Error ? syncError.message : "No se pudo sincronizar Gmail");
-    } finally {
-      setSyncing(false);
-    }
+    } catch (syncError) { setError(syncError instanceof Error ? syncError.message : "No se pudo sincronizar Gmail"); }
+    finally { setSyncing(false); }
   }
 
-  async function act(id: string, action: "approve" | "ignore") {
-    setBusyId(id);
-    setError(null);
-    setNotice(null);
+  async function act(id: string, action: "approve" | "ignore", accountId?: string) {
+    setBusyId(id); setError(null); setNotice(null);
     try {
-      const response = await fetch("/api/finance/email-inbox", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id, action }),
-      });
+      const response = await fetch("/api/finance/email-inbox", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, action, accountId }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No se pudo procesar el correo");
       setNotice(action === "approve" ? "Movimiento aprobado e importado." : "Correo ignorado sin modificar saldos.");
       await load();
-    } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : "No se pudo procesar el correo");
-    } finally {
-      setBusyId(null);
-    }
+    } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "No se pudo procesar el correo"); }
+    finally { setBusyId(null); }
+  }
+
+  async function assignAccount(id: string, accountId: string) {
+    if (!accountId) return;
+    setBusyId(id); setError(null); setNotice(null);
+    try {
+      const response = await fetch("/api/finance/email-inbox", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, action: "assign_account", accountId }) });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "No se pudo asociar la cuenta");
+      setNotice("Cuenta asociada. Ya puedes aprobar el movimiento.");
+      await load();
+    } catch (assignError) { setError(assignError instanceof Error ? assignError.message : "No se pudo asociar la cuenta"); }
+    finally { setBusyId(null); }
   }
 
   return <section className="mx-auto max-w-7xl">
@@ -139,7 +124,6 @@ export function EmailInboxPage() {
     </div>
 
     <div className="mb-5 flex gap-2 overflow-x-auto pb-1">{filters.map(([value, label]) => <button key={value} type="button" onClick={() => setFilter(value)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${filter === value ? "bg-[#17231e] text-white" : "border border-[#dce1da] bg-white text-[#4f5f56]"}`}>{label}</button>)}</div>
-
     {notice && <div aria-live="polite" className="mb-5 rounded-2xl border border-[#d7e5db] bg-[#f3f8f4] px-4 py-3 text-sm text-[#3f604f]">{notice}</div>}
     {error && <div role="alert" className="mb-5 rounded-2xl border border-[#e8c9bf] bg-[#fff4ef] px-4 py-3 text-sm text-[#914f3d]">{error}</div>}
 
@@ -153,9 +137,10 @@ export function EmailInboxPage() {
             <p className="mt-1 text-sm text-[#637168]">{kindLabels[item.parsed.kind ?? "unknown"] ?? item.parsed.kind} · {item.parsed.institution ?? "Banco no identificado"}</p>
             <p className="mt-3 text-xl font-semibold">{money(item.parsed.amount)}</p>
             <div className="mt-3 grid gap-1 text-xs text-[#6b786f] sm:grid-cols-2"><p>Cuenta: {item.account_name ?? "Sin asociar"}</p><p>Confianza: {Math.round(item.confidence * 100)}%</p>{item.parsed.reference && <p>Referencia: {item.parsed.reference}</p>}<p className="break-all">Remitente: {item.sender}</p></div>
+            {!item.account_id && item.processing_status === "pending_review" && <label className="mt-4 block max-w-sm text-xs font-semibold text-[#52665a]">Seleccionar cuenta<select defaultValue="" disabled={busyId === item.id} onChange={(event) => void assignAccount(item.id, event.target.value)} className="mt-1 h-11 w-full rounded-xl border border-[#dce1da] bg-white px-3 text-sm font-normal"><option value="" disabled>Elige una cuenta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.institution}</option>)}</select></label>}
           </div>
           {item.processing_status === "pending_review" && <div className="flex shrink-0 flex-wrap gap-2">
-            {!transferLike && <button type="button" disabled={busyId === item.id} onClick={() => void act(item.id, "approve")} className="flex items-center gap-2 rounded-xl bg-[#17231e] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Check size={16} />Aprobar</button>}
+            {!transferLike && item.account_id && <button type="button" disabled={busyId === item.id} onClick={() => void act(item.id, "approve")} className="flex items-center gap-2 rounded-xl bg-[#17231e] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Check size={16} />Aprobar</button>}
             <button type="button" disabled={busyId === item.id} onClick={() => void act(item.id, "ignore")} className="flex items-center gap-2 rounded-xl border border-[#e3c8bf] px-4 py-2.5 text-sm font-semibold text-[#8b4d3d] disabled:opacity-50"><X size={16} />Ignorar</button>
           </div>}
         </div>
