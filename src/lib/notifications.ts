@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowDownCircle, ArrowRightLeft, ArrowUpCircle, BellRing, CalendarClock, CheckCircle2, Trash2, WalletCards, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowRightLeft, ArrowUpCircle, BellRing, CalendarClock, CheckCircle2, Tags, Trash2, WalletCards, type LucideIcon } from "lucide-react";
 import { creditCardDebt, formatCOP, type FinanceState } from "@/lib/finance";
 import { FINANCE_ACTION_HISTORY_KEY } from "@/components/finance/finance-provider";
 
@@ -17,11 +17,12 @@ type StoredAction = {
   description: string;
   href: string;
   createdAt: string;
-  action: "account" | "income" | "expense" | "transfer" | "clear";
+  action: "account" | "category" | "income" | "expense" | "transfer" | "clear";
 };
 
 const actionIcons: Record<StoredAction["action"], LucideIcon> = {
   account: WalletCards,
+  category: Tags,
   income: ArrowUpCircle,
   expense: ArrowDownCircle,
   transfer: ArrowRightLeft,
@@ -33,17 +34,42 @@ function readActionHistory(): FinanceNotification[] {
   try {
     const stored = window.localStorage.getItem(FINANCE_ACTION_HISTORY_KEY);
     const actions = stored ? JSON.parse(stored) as StoredAction[] : [];
-    return actions.slice(0, 20).map((action) => ({
-      id: `history:${action.id}`,
-      title: action.title,
-      description: action.description,
-      href: action.href,
-      severity: "info" as const,
-      icon: actionIcons[action.action] ?? CheckCircle2,
-    }));
+    return actions
+      .filter((action) => !["income", "expense"].includes(action.action))
+      .slice(0, 20)
+      .map((action) => ({
+        id: `history:${action.id}`,
+        title: action.title,
+        description: action.description,
+        href: action.href,
+        severity: "info" as const,
+        icon: actionIcons[action.action] ?? CheckCircle2,
+      }));
   } catch {
     return [];
   }
+}
+
+function recentMovementNotifications(state: FinanceState): FinanceNotification[] {
+  return [...state.transactions]
+    .filter((transaction) => !transaction.transferId)
+    .sort((a, b) => {
+      const dateOrder = b.date.localeCompare(a.date);
+      if (dateOrder !== 0) return dateOrder;
+      return b.id.localeCompare(a.id);
+    })
+    .slice(0, 12)
+    .map((transaction) => {
+      const income = transaction.kind === "income";
+      return {
+        id: `movement:${transaction.id}`,
+        title: income ? "Ingreso registrado" : "Gasto registrado",
+        description: `${transaction.description} · ${formatCOP(transaction.amount)}`,
+        href: "/movimientos",
+        severity: "info" as const,
+        icon: income ? ArrowUpCircle : ArrowDownCircle,
+      };
+    });
 }
 
 function nextMonthlyDate(day: number, now: Date) {
@@ -113,5 +139,5 @@ export function buildFinanceNotifications(state: FinanceState, now = new Date())
     return weight[a.severity] - weight[b.severity];
   });
 
-  return [...alerts, ...readActionHistory()];
+  return [...alerts, ...recentMovementNotifications(state), ...readActionHistory()];
 }

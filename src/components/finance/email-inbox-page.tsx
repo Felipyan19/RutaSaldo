@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, Inbox, RefreshCw, ShieldAlert, X } from "lucide-react";
+import { useFinance } from "./finance-provider";
 
 type InboxAccount = { id: string; name: string; institution: string; kind: string };
 type InboxItem = {
@@ -36,6 +37,7 @@ function money(value?: number | null) {
 }
 
 export function EmailInboxPage() {
+  const { refreshState } = useFinance();
   const [items, setItems] = useState<InboxItem[]>([]);
   const [accounts, setAccounts] = useState<InboxAccount[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number][0]>("pending_review");
@@ -92,7 +94,8 @@ export function EmailInboxPage() {
       const response = await fetch("/api/finance/email-inbox", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, action, accountId }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No se pudo procesar el correo");
-      setNotice(action === "approve" ? "Movimiento aprobado e importado." : "Correo ignorado sin modificar saldos.");
+      if (action === "approve") await refreshState();
+      setNotice(action === "approve" ? "Movimiento aprobado. Ya aparece en el historial y las notificaciones." : "Correo ignorado sin modificar saldos.");
       await load();
     } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "No se pudo procesar el correo"); }
     finally { setBusyId(null); }
