@@ -30,31 +30,40 @@ export async function GET() {
   if (!workspaceId) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
   const db = getDb();
-  const result = await db.execute<{
-    id: string;
-    subject: string;
-    sender: string;
-    received_at: Date;
-    processing_status: string;
-    movement_status: string;
-    confidence_basis_points: number;
-    parsed_payload: string;
-    account_id: string | null;
-    transaction_id: string | null;
-    account_name: string | null;
-  }>(sql`
-    SELECT bem.id, bem.subject, bem.sender, bem.received_at, bem.processing_status,
-           bem.movement_status, bem.confidence_basis_points, bem.parsed_payload,
-           bem.account_id, bem.transaction_id, a.name AS account_name
-    FROM bank_email_messages bem
-    LEFT JOIN accounts a ON a.id = bem.account_id AND a.workspace_id = bem.workspace_id
-    WHERE bem.workspace_id = ${workspaceId}
-    ORDER BY bem.received_at DESC
-    LIMIT 150
-  `);
+  const [messages, accounts] = await Promise.all([
+    db.execute<{
+      id: string;
+      subject: string;
+      sender: string;
+      received_at: Date;
+      processing_status: string;
+      movement_status: string;
+      confidence_basis_points: number;
+      parsed_payload: string;
+      account_id: string | null;
+      transaction_id: string | null;
+      account_name: string | null;
+    }>(sql`
+      SELECT bem.id, bem.subject, bem.sender, bem.received_at, bem.processing_status,
+             bem.movement_status, bem.confidence_basis_points, bem.parsed_payload,
+             bem.account_id, bem.transaction_id, a.name AS account_name
+      FROM bank_email_messages bem
+      LEFT JOIN accounts a ON a.id = bem.account_id AND a.workspace_id = bem.workspace_id
+      WHERE bem.workspace_id = ${workspaceId}
+      ORDER BY bem.received_at DESC
+      LIMIT 150
+    `),
+    db.execute<{ id: string; name: string; institution: string; kind: string }>(sql`
+      SELECT id, name, institution, kind
+      FROM accounts
+      WHERE workspace_id = ${workspaceId}
+      ORDER BY name ASC
+    `),
+  ]);
 
   return NextResponse.json({
-    items: result.rows.map((row) => ({
+    accounts: accounts.rows,
+    items: messages.rows.map((row) => ({
       ...row,
       parsed: JSON.parse(row.parsed_payload) as ParsedPayload,
       confidence: row.confidence_basis_points / 10000,
@@ -66,12 +75,29 @@ export async function PATCH(request: NextRequest) {
   const workspaceId = await currentWorkspaceId();
   if (!workspaceId) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  const body = await request.json().catch(() => null) as { id?: string; action?: string } | null;
-  if (!body?.id || !["approve", "ignore"].includes(body.action ?? "")) {
+  const body = await request.json().catch(() => null) as { id?: string; action?: string; accountId?: string } | null;
+  if (!body?.id || !["approve", "ignore", "assign_account"].includes(body.action ?? "")) {
     return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
   }
 
   const db = getDb();
+  if (body.action === "assign_account") {
+    if (!body.accountId) return NextResponse.json({ error: "Selecciona una cuenta" }, { status: 400 });
+    const updated = await db.execute<{ id: string }>(sql`
+      UPDATE bank_email_messages bem
+      SET account_id = a.id
+      FROM accounts a
+      WHERE bem.id = ${body.id}
+        AND bem.workspace_id = ${workspaceId}
+        AND bem.processing_status IN ('pending_review', 'received')
+        AND a.id = ${body.accountId}
+        AND a.workspace_id = ${workspaceId}
+      RETURNING bem.id
+    `);
+    if (!updated.rows.length) return NextResponse.json({ error: "No se pudo asociar la cuenta" }, { status: 409 });
+    return NextResponse.json({ ok: true });
+  }
+
   if (body.action === "ignore") {
     const updated = await db.execute<{ id: string }>(sql`
       UPDATE bank_email_messages
@@ -100,9 +126,7 @@ export async function PATCH(request: NextRequest) {
         FOR UPDATE
       `);
       const message = selected.rows[0];
-      if (!message || !["pending_review", "received"].includes(message.processing_status)) {
-        throw new Error("ALREADY_PROCESSED");
-      }
+      if (!message || !["pending_review", "received"].includes(message.processing_status)) throw new Error("ALREADY_PROCESSED");
 
       const parsed = JSON.parse(message.parsed_payload) as ParsedPayload;
       if (!message.account_id) throw new Error("ACCOUNT_REQUIRED");
@@ -129,7 +153,7 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "UNKNOWN";
     if (message === "ALREADY_PROCESSED") return NextResponse.json({ error: "El correo ya fue procesado" }, { status: 409 });
-    if (message === "ACCOUNT_REQUIRED") return NextResponse.json({ error: "No se pudo identificar una cuenta única" }, { status: 409 });
+    if (message === "ACCOUNT_REQUIRED") return NextResponse.json({ error: "Selecciona una cuenta antes de aprobar" }, { status: 409 });
     if (message === "AMOUNT_REQUIRED") return NextResponse.json({ error: "El correo no contiene un monto válido" }, { status: 409 });
     if (message === "RECONCILIATION_REQUIRED") return NextResponse.json({ error: "Las transferencias y pagos de tarjeta deben conciliarse, no aprobarse como ingreso o gasto" }, { status: 409 });
     console.error("[email-inbox] approval failed", error);

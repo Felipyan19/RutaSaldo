@@ -93,17 +93,20 @@ function detectKind(text: string): BankMovementKind {
   return "unknown";
 }
 
-function findMerchant(text: string, kind: BankMovementKind) {
+function cleanMerchant(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/\s+(?:fecha|hora|monto|método de pago|no\.? de referencia).*$/i, "")
+    .trim();
+}
+
+function findMerchant(body: string, kind: BankMovementKind) {
   if (kind !== "purchase") return null;
-  const patterns = [
-    /(?:comercio|establecimiento|en)\s*[:#-]?\s*([^\n.,;]{2,60})/i,
-    /compra\s+(?:en|a)\s+([^\n.,;]{2,60})/i,
-  ];
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match?.[1]) return match[1].trim();
-  }
-  return null;
+  const explicit = body.match(/(?:^|\n)\s*(?:comercio|establecimiento)\s*[:#-]?\s*([^\n]{2,100})/im);
+  if (explicit?.[1]) return cleanMerchant(explicit[1]);
+
+  const purchase = body.match(/(?:compra|pago|consumo)\s+(?:en|a)\s+([^\n.,;]{2,80})/i);
+  return purchase?.[1] ? cleanMerchant(purchase[1]) : null;
 }
 
 function categoryFor(text: string) {
@@ -125,7 +128,8 @@ export function normalizedMovementFingerprint(parsed: ParsedBankEmail) {
 }
 
 export function parseBankEmail(subject: string, body: string, sender = ""): ParsedBankEmail {
-  const text = `${sender}\n${subject}\n${body}`.replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").trim();
+  const normalizedBody = body.replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").trim();
+  const text = `${sender}\n${subject}\n${normalizedBody}`.trim();
   const institution = detectInstitution(text);
   const status = detectStatus(text);
   const kind = detectKind(text);
@@ -133,7 +137,7 @@ export function parseBankEmail(subject: string, body: string, sender = ""): Pars
   const reference = findReference(text);
   const accountLastFour = findLastFour(text);
   const destinationLastFour = findDestinationLastFour(text);
-  const merchant = findMerchant(text, kind);
+  const merchant = findMerchant(normalizedBody, kind);
   const categorySlug = categoryFor(`${merchant ?? ""}\n${text}`);
 
   const confidenceReasons: string[] = [];
