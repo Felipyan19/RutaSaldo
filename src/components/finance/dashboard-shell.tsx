@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowRightLeft, Bell, CheckCheck, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Menu, Mic, Plus, ScanLine, Settings, Tags, WalletCards } from "lucide-react";
+import { ArrowRightLeft, Bell, CalendarClock, CheckCheck, ChevronDown, CircleDollarSign, Inbox, LayoutDashboard, LogOut, Menu, Mic, Plus, ScanLine, Settings, Tags, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { logOut } from "@/app/actions";
 import { Account, Transaction, Transfer } from "@/lib/finance";
@@ -19,7 +19,8 @@ const navigation = [
   { href: "/cuentas", label: "Cuentas", icon: WalletCards },
   { href: "/movimientos", label: "Movimientos", icon: CircleDollarSign },
   { href: "/categorias", label: "Categorías", icon: Tags },
-  { href: "/configuracion", label: "Configuración", icon: Settings },
+  { href: "/obligaciones", label: "Obligaciones", icon: CalendarClock },
+  { href: "/bandeja", label: "Bandeja bancaria", icon: Inbox },
 ] as const;
 
 type User = { name?: string | null; email?: string | null; image?: string | null };
@@ -35,7 +36,6 @@ export function DashboardShell({ user, children }: { user: User; children: React
   const [notificationNow, setNotificationNow] = useState<Date | null>(null);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
   const [modal, setModal] = useState<ModalName>(null);
-  const current = navigation.find((item) => pathname.startsWith(item.href)) ?? navigation[0];
   const notificationStorageKey = `rutasaldo:read-notifications:${user.email ?? state.workspaceName}`;
   const notifications = useMemo(() => notificationNow ? buildFinanceNotifications(state, notificationNow) : [], [notificationNow, state]);
   const unreadNotifications = notifications.filter((notification) => !readNotificationIds.includes(notification.id));
@@ -98,11 +98,9 @@ export function DashboardShell({ user, children }: { user: User; children: React
       )}
 
       <main className="lg:ml-64">
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-[#e0e4dd] bg-[#f4f5f0]/90 px-5 backdrop-blur-xl md:px-8 lg:px-10">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setMobileMenu(true)} className="p-2 lg:hidden" aria-label="Abrir menú"><Menu aria-hidden="true" /></button>
-            <div><h1 className="text-xl font-semibold tracking-[-0.025em]">{current.label}</h1><p className="hidden text-xs text-[#52665a] sm:block">Tu espacio financiero privado</p></div>
-          </div>
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[#e0e4dd] bg-[#f4f5f0]/90 px-5 backdrop-blur-xl md:px-8 lg:px-10">
+          <button type="button" onClick={() => setMobileMenu(true)} className="p-2 lg:hidden" aria-label="Abrir menú"><Menu aria-hidden="true" /></button>
+          <div className="hidden lg:block" aria-hidden="true" />
           <div className="flex items-center gap-2">
             <div className="relative">
               <button type="button" title="Notificaciones" aria-label={`Notificaciones${unreadNotifications.length ? `, ${unreadNotifications.length} sin leer` : ""}`} aria-haspopup="dialog" aria-expanded={notificationsOpen} onClick={() => { setQuickMenu(false); setNotificationsOpen((open) => !open); }} className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#dce1da] bg-white">
@@ -112,7 +110,7 @@ export function DashboardShell({ user, children }: { user: User; children: React
               {notificationsOpen && (
                 <>
                   <button type="button" aria-label="Cerrar notificaciones" onClick={() => setNotificationsOpen(false)} className="fixed inset-0 z-20 cursor-default bg-black/10 sm:bg-transparent" />
-                  <section role="dialog" aria-modal="true" aria-label="Centro de notificaciones" className="fixed inset-x-3 top-24 z-30 flex max-h-[calc(100dvh-7rem)] flex-col overflow-hidden rounded-2xl border border-[#dce1da] bg-white shadow-[0_18px_50px_rgba(23,35,30,.20)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:max-h-[32rem] sm:w-[22rem]">
+                  <section role="dialog" aria-modal="true" aria-label="Centro de notificaciones" className="fixed inset-x-3 top-20 z-30 flex max-h-[calc(100dvh-6rem)] flex-col overflow-hidden rounded-2xl border border-[#dce1da] bg-white shadow-[0_18px_50px_rgba(23,35,30,.20)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:max-h-[32rem] sm:w-[22rem]">
                     <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#edf0eb] px-4 py-3">
                       <div className="min-w-0"><h2 className="text-sm font-semibold">Notificaciones</h2><p className="mt-0.5 text-xs leading-5 text-[#6b786f]">Alertas e historial de actividad</p></div>
                       {unreadNotifications.length > 0 && <button type="button" onClick={() => saveReadNotifications([...readNotificationIds, ...notifications.map((item) => item.id)])} className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-[#4f6c5c]"><CheckCheck size={15} aria-hidden="true" /><span className="hidden min-[390px]:inline">Marcar leídas</span></button>}
@@ -171,10 +169,15 @@ export function DashboardShell({ user, children }: { user: User; children: React
 }
 
 function Sidebar({ workspaceName, user, pathname, onNavigate }: { workspaceName: string; user: User; pathname: string; onNavigate?: () => void }) {
+  const settingsActive = pathname.startsWith("/configuracion");
   return <>
     <div className="flex items-center gap-3 px-2"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#b7f34b] text-[#17231e]"><BrandMark size={22} /></span><span className="text-lg font-semibold tracking-tight">RutaSaldo</span></div>
     <div className="mt-8 rounded-xl border border-white/10 bg-white/[.04] p-3"><p className="text-[10px] font-semibold uppercase tracking-[.12em] text-[#aebbb3]">Workspace</p><div className="mt-2 flex items-center justify-between text-left text-sm font-medium">{workspaceName}<ChevronDown size={15} /></div></div>
     <nav className="mt-7 space-y-1.5" aria-label="Navegación financiera">{navigation.map((item) => { const Icon = item.icon; const active = pathname.startsWith(item.href); return <Link key={item.href} href={item.href} onClick={onNavigate} className={`flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition ${active ? "bg-[#b7f34b] text-[#17231e]" : "text-[#aab7af] hover:bg-white/[.06] hover:text-white"}`}><Icon size={18} />{item.label}</Link>; })}</nav>
-    <div className="mt-auto space-y-1.5"><form action={logOut}><button type="submit" className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-[#aab7af] hover:bg-white/[.06]"><LogOut size={18} /> Cerrar sesión</button></form><div className="mt-4 flex items-center gap-3 border-t border-white/10 px-2 pt-5"><div className="grid h-9 w-9 place-items-center rounded-full bg-[#d4e5d9] text-sm font-semibold text-[#21352b]">{(user.name ?? user.email ?? "U").slice(0, 2).toUpperCase()}</div><div className="min-w-0"><p className="truncate text-sm font-medium">{user.name ?? "Usuario de RutaSaldo"}</p><p className="truncate text-xs text-[#aebbb3]">{user.email}</p></div></div></div>
+    <div className="mt-auto space-y-1.5">
+      <Link href="/configuracion" onClick={onNavigate} className={`flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm transition ${settingsActive ? "bg-white/[.10] text-white" : "text-[#aab7af] hover:bg-white/[.06] hover:text-white"}`}><Settings size={18} /> Configuración</Link>
+      <form action={logOut}><button type="submit" className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-[#aab7af] hover:bg-white/[.06]"><LogOut size={18} /> Cerrar sesión</button></form>
+      <div className="mt-4 flex items-center gap-3 border-t border-white/10 px-2 pt-5"><div className="grid h-9 w-9 place-items-center rounded-full bg-[#d4e5d9] text-sm font-semibold text-[#21352b]">{(user.name ?? user.email ?? "U").slice(0, 2).toUpperCase()}</div><div className="min-w-0"><p className="truncate text-sm font-medium">{user.name ?? "Usuario de RutaSaldo"}</p><p className="truncate text-xs text-[#aebbb3]">{user.email}</p></div></div>
+    </div>
   </>;
 }
