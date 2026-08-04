@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowRightLeft, Bell, CalendarClock, CheckCheck, ChevronDown, CircleDollarSign, Inbox, LayoutDashboard, LogOut, Menu, Mic, Plus, ScanLine, Settings, Tags, WalletCards } from "lucide-react";
+import { ArrowRightLeft, Bell, CalendarClock, CheckCheck, ChevronDown, CircleDollarSign, ClipboardCheck, Inbox, LayoutDashboard, LogOut, Menu, Mic, Plus, ScanLine, Settings, Tags, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { logOut } from "@/app/actions";
 import { Account, Transaction, Transfer } from "@/lib/finance";
@@ -19,6 +19,7 @@ const navigation = [
   { href: "/cuentas", label: "Cuentas", icon: WalletCards },
   { href: "/movimientos", label: "Movimientos", icon: CircleDollarSign },
   { href: "/categorias", label: "Categorías", icon: Tags },
+  { href: "/pagos-fijos", label: "Pagos fijos", icon: ClipboardCheck },
   { href: "/obligaciones", label: "Obligaciones", icon: CalendarClock },
   { href: "/bandeja", label: "Bandeja bancaria", icon: Inbox },
 ] as const;
