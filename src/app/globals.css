@@ -292,6 +292,16 @@ section[aria-labelledby="receipt-title"] {
   }
 }
 
+/* La topbar queda reservada para navegación móvil y acciones. */
+main > header > div:first-child > div {
+  display: none;
+}
+
+main > header {
+  min-height: 4rem;
+  height: 4rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rutasaldo-loader__mark-box,
   .rutasaldo-loader__orbit,
