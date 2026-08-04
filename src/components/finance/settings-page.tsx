@@ -49,9 +49,9 @@ export function SettingsPage() {
 
   return (
     <section className="mx-auto max-w-7xl">
-      <div className="mb-7">
-        <h2 className="text-2xl font-semibold tracking-tight">Configuración</h2>
-        <p className="mt-1 text-sm text-[#5e6d63]">Gestiona tu espacio, conexiones y privacidad.</p>
+      <div className="mb-7 max-w-2xl">
+        <h1 className="text-3xl font-semibold tracking-[-0.04em]">Configuración</h1>
+        <p className="mt-2 text-sm text-[#5e6d63]">Gestiona tu espacio, conexiones y privacidad.</p>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-12">
@@ -60,7 +60,7 @@ export function SettingsPage() {
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#eef3ef] text-[#486356]"><WalletCards size={20} /></span>
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[.12em] text-[#748178]">Espacio activo</p>
-              <h3 className="mt-1 truncate text-lg font-semibold">{state.workspaceName}</h3>
+              <h2 className="mt-1 truncate text-lg font-semibold">{state.workspaceName}</h2>
               <p className="mt-2 text-sm text-[#5e6d63]">{state.accounts.length} cuentas · {state.transactions.length} movimientos</p>
             </div>
           </div>
@@ -71,7 +71,7 @@ export function SettingsPage() {
             <div className="flex min-w-0 items-start gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#edf4ef] text-[#486356]"><Mail size={20} /></span>
               <div className="min-w-0">
-                <h3 className="font-semibold">Correos bancarios</h3>
+                <h2 className="font-semibold">Correos bancarios</h2>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-[#5e6d63]">RutaSaldo lee notificaciones bancarias con permiso de solo lectura y guarda la autorización cifrada.</p>
               </div>
             </div>
@@ -105,17 +105,17 @@ export function SettingsPage() {
         </article>
 
         <article className="rounded-3xl border border-[#e0e4dd] bg-white p-6 xl:col-span-4">
-          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#eef3ef] text-[#486356]"><LockKeyhole size={20} /></span><div><h3 className="font-semibold">Privacidad</h3><p className="mt-1 text-sm leading-6 text-[#5e6d63]">Consulta qué datos usa RutaSaldo y cómo protege tu información.</p></div></div>
+          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#eef3ef] text-[#486356]"><LockKeyhole size={20} /></span><div><h2 className="font-semibold">Privacidad</h2><p className="mt-1 text-sm leading-6 text-[#5e6d63]">Consulta qué datos usa RutaSaldo y cómo protege tu información.</p></div></div>
           <Link href="/privacidad" className="mt-5 inline-flex text-sm font-semibold text-[#587164] underline underline-offset-4">Ver aviso de privacidad</Link>
         </article>
 
         <article className="rounded-3xl border border-[#e0e4dd] bg-white p-6 xl:col-span-4">
-          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#eef3ef] text-[#486356]"><LogOut size={20} /></span><div><h3 className="font-semibold">Sesión</h3><p className="mt-1 text-sm leading-6 text-[#5e6d63]">Cierra tu sesión en este dispositivo.</p></div></div>
+          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#eef3ef] text-[#486356]"><LogOut size={20} /></span><div><h2 className="font-semibold">Sesión</h2><p className="mt-1 text-sm leading-6 text-[#5e6d63]">Cierra tu sesión en este dispositivo.</p></div></div>
           <form action={logOut} className="mt-5"><button type="submit" className="rounded-xl border border-[#cfd7d1] bg-white px-4 py-2.5 text-sm font-semibold text-[#25372e]">Cerrar sesión</button></form>
         </article>
 
         <article className="rounded-3xl border border-[#ead0c8] bg-[#fff8f5] p-6 xl:col-span-4">
-          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#fbe9e3] text-[#8a4c3c]"><Database size={20} /></span><div><h3 className="font-semibold text-[#754638]">Eliminar datos financieros</h3><p className="mt-1 text-sm leading-6 text-[#754638]">Borra cuentas y movimientos del espacio. Tu usuario seguirá activo.</p></div></div>
+          <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#fbe9e3] text-[#8a4c3c]"><Database size={20} /></span><div><h2 className="font-semibold text-[#754638]">Eliminar datos financieros</h2><p className="mt-1 text-sm leading-6 text-[#754638]">Borra cuentas y movimientos del espacio. Tu usuario seguirá activo.</p></div></div>
           {confirming ? (
             <div className="mt-5 flex flex-wrap gap-2">
               <button type="button" onClick={clear} disabled={saving} className="rounded-xl bg-[#9a4f3e] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Confirmar eliminación</button>
