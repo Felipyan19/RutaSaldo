@@ -177,7 +177,7 @@ export function ReceiptScanner({
                 <div className="relative overflow-hidden rounded-2xl border border-[#c9d3ca] bg-white">
                   {previewUrl ? <img src={previewUrl} alt="Vista previa de la factura" className="max-h-72 w-full object-contain" /> : <div className="grid min-h-52 place-items-center p-5 text-center"><div><FileText className="mx-auto text-[#4f6c5c]" size={34} /><p className="mt-3 break-all text-xs font-medium">{file.name}</p></div></div>}
                   <div aria-hidden="true" className="ocr-preview-glow pointer-events-none absolute inset-0 bg-[#789281]/10" />
-                  <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/80 bg-white/95 px-3 py-1 text-[9px] font-semibold uppercase tracking-[.1em] text-[#52665a]">Analizando</span>
+                  <span className="absolute inset-x-0 bottom-3 mx-auto w-fit rounded-full border border-white/80 bg-white/95 px-3 py-1 text-[9px] font-semibold uppercase tracking-[.1em] text-[#52665a]">Analizando</span>
                 </div>
               </aside>
               <ProcessingState />
@@ -221,7 +221,7 @@ export function ReceiptScanner({
                 )}
 
                 <button type="button" onClick={() => setEditing((value) => !value)} aria-expanded={editing} className="mt-5 flex w-full items-center justify-between rounded-2xl border border-[#dce1da] px-4 py-3 text-left text-sm font-semibold">
-                  <span className="flex items-center gap-2"><Pencil size={16} /> Revisar o editar detalles</span><ChevronDown size={17} className={editing ? "rotate-180" : ""} />
+                  <span className="flex items-center gap-2"><Pencil size={16} /> Revisar o editar detalles</span><ChevronDown size={17} aria-hidden="true" />
                 </button>
 
                 {editing && (
