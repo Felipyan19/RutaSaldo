@@ -63,13 +63,7 @@ export function EmailInboxPage() {
     }
   }
 
-  useEffect(() => {
-    void load();
-    const heading = document.querySelector("main > header h1");
-    const previous = heading?.textContent;
-    if (heading) heading.textContent = "Bandeja bancaria";
-    return () => { if (heading && previous) heading.textContent = previous; };
-  }, []);
+  useEffect(() => { void load(); }, []);
 
   const visible = useMemo(() => filter === "all" ? items : items.filter((item) => item.processing_status === filter), [filter, items]);
   const pendingCount = items.filter((item) => item.processing_status === "pending_review").length;
@@ -116,7 +110,7 @@ export function EmailInboxPage() {
 
   return <section className="mx-auto max-w-7xl">
     <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div><h2 className="text-2xl font-semibold tracking-tight">Bandeja bancaria</h2><p className="mt-1 text-sm text-[#5e6d63]">Revisa los correos detectados antes de que afecten tus saldos.</p></div>
+      <div><h1 className="text-3xl font-semibold tracking-[-0.04em]">Bandeja bancaria</h1><p className="mt-2 text-sm text-[#5e6d63]">Revisa los correos detectados antes de que afecten tus saldos.</p></div>
       <button type="button" onClick={() => void syncNow()} disabled={syncing || loading} className="flex w-fit items-center gap-2 rounded-xl bg-[#17231e] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><RefreshCw size={16} className={syncing ? "animate-spin" : ""} />{syncing ? "Sincronizando…" : "Sincronizar Gmail"}</button>
     </div>
 
@@ -136,7 +130,7 @@ export function EmailInboxPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#eef3ef] px-2.5 py-1 text-xs font-semibold text-[#4f6c5c]">{statusLabels[item.processing_status] ?? item.processing_status}</span><span className="text-xs text-[#738078]">{new Date(item.received_at).toLocaleString("es-CO")}</span></div>
-            <h3 className="mt-3 break-words font-semibold">{item.parsed.description || item.subject}</h3>
+            <h2 className="mt-3 break-words font-semibold">{item.parsed.description || item.subject}</h2>
             <p className="mt-1 text-sm text-[#637168]">{kindLabels[item.parsed.kind ?? "unknown"] ?? item.parsed.kind} · {item.parsed.institution ?? "Banco no identificado"}</p>
             <p className="mt-3 text-xl font-semibold">{money(item.parsed.amount)}</p>
             <div className="mt-3 grid gap-1 text-xs text-[#6b786f] sm:grid-cols-2"><p>Cuenta: {item.account_name ?? "Sin asociar"}</p><p>Confianza: {Math.round(item.confidence * 100)}%</p>{item.parsed.reference && <p>Referencia: {item.parsed.reference}</p>}<p className="break-all">Remitente: {item.sender}</p></div>
