@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRightLeft, CalendarClock, Check, CreditCard, Landmark, LoaderCircle, Plus, RotateCcw } from "lucide-react";
+import { ArrowRightLeft, CalendarClock, Check, CreditCard, Landmark, LoaderCircle, Plus, RotateCcw, X } from "lucide-react";
 import { formatCOP } from "@/lib/finance";
 import { deriveUpcomingPayments, type Phase2State } from "@/lib/phase2";
 import { useFinance } from "./finance-provider";
+import { MetricCard } from "./dashboard-ui";
 
 const inputClass = "mt-1.5 h-11 w-full rounded-xl border border-[#dce1da] bg-white px-3 text-sm outline-none focus:border-[#526b5e] focus:ring-2 focus:ring-[#526b5e]/10";
 const panelClass = "rounded-3xl border border-[#e0e4dd] bg-white p-5 md:p-6";
@@ -17,40 +18,21 @@ export function Phase2Page() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [action, setAction] = useState<Action>("installment");
+  const [actionOpen, setActionOpen] = useState(false);
 
   async function load() {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch("/api/finance/phase2", { cache: "no-store" });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error ?? "No se pudo cargar la Fase 2.");
-      setState(payload);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo cargar la Fase 2.");
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true); setError("");
+    try { const response = await fetch("/api/finance/phase2", { cache: "no-store" }); const payload = await response.json(); if (!response.ok) throw new Error(payload?.error ?? "No se pudo cargar la Fase 2."); setState(payload); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo cargar la Fase 2."); }
+    finally { setLoading(false); }
   }
-
   useEffect(() => { void load(); }, []);
 
   async function mutate(body: unknown, refreshFinance = true) {
-    setSaving(true);
-    setError("");
-    try {
-      const response = await fetch("/api/finance/phase2", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error ?? "No se pudo completar la operación.");
-      setState(payload);
-      if (refreshFinance) await refreshState();
-      return true;
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo completar la operación.");
-      return false;
-    } finally {
-      setSaving(false);
-    }
+    setSaving(true); setError("");
+    try { const response = await fetch("/api/finance/phase2", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); const payload = await response.json(); if (!response.ok) throw new Error(payload?.error ?? "No se pudo completar la operación."); setState(payload); if (refreshFinance) await refreshState(); return true; }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo completar la operación."); return false; }
+    finally { setSaving(false); }
   }
 
   const upcoming = useMemo(() => deriveUpcomingPayments(state), [state]);
@@ -58,58 +40,35 @@ export function Phase2Page() {
   const assetAccounts = financeState.accounts.filter((account) => account.kind !== "credit_card");
   const expenses = financeState.transactions.filter((item) => item.kind === "expense" && !item.transferId);
   const incomes = financeState.transactions.filter((item) => item.kind === "income" && !item.transferId);
+  const activeDebts = state.debts.filter((item) => item.status === "active");
+  const totalDebt = activeDebts.reduce((sum, item) => sum + item.currentBalance, 0);
+  const minimumPayments = activeDebts.reduce((sum, item) => sum + item.minimumPayment, 0);
 
   if (loading) return <div className="grid min-h-72 place-items-center"><div className="text-center"><LoaderCircle className="mx-auto animate-spin text-[#4f6c5c]" /><p className="mt-3 text-sm text-[#5e6d63]">Cargando cuotas y deudas…</p></div></div>;
 
   return <section className="space-y-6">
     {error && <div role="alert" className="rounded-2xl border border-[#e8c9bf] bg-[#fff4ef] px-4 py-3 text-sm text-[#914f3d]">{error}</div>}
 
-    <div className="grid gap-4 md:grid-cols-3">
-      <Metric icon={CreditCard} label="Compras a cuotas" value={String(state.installmentPlans.length)} />
-      <Metric icon={Landmark} label="Deudas activas" value={String(state.debts.filter((item) => item.status === "active").length)} />
-      <Metric icon={CalendarClock} label="Pagos pendientes" value={String(upcoming.length)} />
-    </div>
-
-    <div className={panelClass}>
-      <div className="mb-5 flex flex-wrap gap-2">
-        {([ ["installment", "Compra a cuotas"], ["debt", "Nueva deuda"], ["payment", "Registrar abono"], ["reconcile", "Conciliar transferencia"] ] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setAction(value)} className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${action === value ? "bg-[#17231e] text-white" : "border border-[#dce1da] bg-white text-[#52665a]"}`}>{label}</button>)}
-      </div>
-      {action === "installment" && <InstallmentForm cards={cards} categories={financeState.categories} saving={saving} onSubmit={mutate} />}
-      {action === "debt" && <DebtForm saving={saving} onSubmit={mutate} />}
-      {action === "payment" && <PaymentForm debts={state.debts} accounts={assetAccounts} saving={saving} onSubmit={mutate} />}
-      {action === "reconcile" && <ReconcileForm expenses={expenses} incomes={incomes} saving={saving} onSubmit={mutate} />}
+    <div className="grid gap-3 sm:grid-cols-3">
+      <MetricCard icon={Landmark} label="Deuda activa" value={formatCOP(totalDebt)} note={`${activeDebts.length} obligaciones · mínimo ${formatCOP(minimumPayments)}`} featured tone={totalDebt > 0 ? "warning" : "positive"} />
+      <MetricCard icon={CalendarClock} label="Pagos pendientes" value={String(upcoming.length)} tone={upcoming.some((item) => item.overdue) ? "negative" : "neutral"} />
+      <MetricCard icon={CreditCard} label="Compras a cuotas" value={String(state.installmentPlans.length)} />
     </div>
 
     <div className="grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
-      <div className={panelClass}>
-        <h2 className="text-lg font-semibold">Próximos pagos y vencidos</h2>
-        <p className="mt-1 text-sm text-[#5e6d63]">Incluye cuotas atrasadas y vencimientos reales de los días 29, 30 y 31.</p>
-        <div className="mt-5 divide-y divide-[#edf0eb]">
-          {upcoming.length ? upcoming.map((payment) => <div key={payment.id} className="flex items-center gap-3 py-4 first:pt-0 last:pb-0"><span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${payment.overdue ? "bg-[#fff0ec] text-[#b24e3d]" : "bg-[#eef3ef] text-[#4f6c5c]"}`}><CalendarClock size={18} /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{payment.title}</p><p className={`mt-0.5 text-xs ${payment.overdue ? "font-semibold text-[#b24e3d]" : "text-[#5e6d63]"}`}>{payment.description} · {new Date(`${payment.dueDate}T12:00:00`).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}</p></div><p className="text-sm font-semibold">{formatCOP(payment.amount)}</p></div>) : <Empty text="No hay pagos pendientes." />}
-        </div>
-      </div>
-
-      <div className={panelClass}>
-        <h2 className="text-lg font-semibold">Deudas</h2>
-        <div className="mt-5 space-y-3">
-          {state.debts.length ? state.debts.map((debt) => <article key={debt.id} className="rounded-2xl border border-[#e0e4dd] p-4"><div className="flex justify-between gap-4"><div><p className="font-semibold">{debt.name}</p><p className="mt-1 text-xs text-[#5e6d63]">{debt.creditor} · vence día {debt.paymentDueDay}</p></div><span className={`h-fit rounded-full px-2.5 py-1 text-[10px] font-semibold ${debt.status === "paid" ? "bg-[#e4f2e8] text-[#3f7258]" : "bg-[#fff4df] text-[#8a6328]"}`}>{debt.status === "paid" ? "Pagada" : "Activa"}</span></div><p className="mt-4 text-xl font-semibold">{formatCOP(debt.currentBalance)}</p><p className="mt-1 text-xs text-[#5e6d63]">Pago mínimo {formatCOP(debt.minimumPayment)} · tasa {debt.interestRate}%</p></article>) : <Empty text="Aún no tienes deudas externas." />}
-        </div>
-      </div>
+      <div className={panelClass}><h2 className="text-lg font-semibold">Próximos pagos y vencidos</h2><p className="mt-1 text-sm text-[#5e6d63]">Lo más urgente aparece primero, incluidos vencimientos de los días 29, 30 y 31.</p><div className="mt-5 divide-y divide-[#edf0eb]">{upcoming.length ? upcoming.map((payment) => <div key={payment.id} className="flex items-center gap-3 py-4 first:pt-0 last:pb-0"><span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${payment.overdue ? "bg-[#fff0ec] text-[#b24e3d]" : "bg-[#eef3ef] text-[#4f6c5c]"}`}><CalendarClock size={18} /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{payment.title}</p><p className={`mt-0.5 text-xs ${payment.overdue ? "font-semibold text-[#b24e3d]" : "text-[#5e6d63]"}`}>{payment.description} · {new Date(`${payment.dueDate}T12:00:00`).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}</p></div><p className="text-sm font-semibold">{formatCOP(payment.amount)}</p></div>) : <Empty text="No hay pagos pendientes." />}</div></div>
+      <div className={panelClass}><h2 className="text-lg font-semibold">Deudas</h2><div className="mt-5 space-y-3">{state.debts.length ? state.debts.map((debt) => <article key={debt.id} className="rounded-2xl border border-[#e0e4dd] p-4"><div className="flex justify-between gap-4"><div><p className="font-semibold">{debt.name}</p><p className="mt-1 text-xs text-[#5e6d63]">{debt.creditor} · vence día {debt.paymentDueDay}</p></div><span className={`h-fit rounded-full px-2.5 py-1 text-[10px] font-semibold ${debt.status === "paid" ? "bg-[#e4f2e8] text-[#3f7258]" : "bg-[#fff4df] text-[#8a6328]"}`}>{debt.status === "paid" ? "Pagada" : "Activa"}</span></div><p className="mt-4 text-xl font-semibold">{formatCOP(debt.currentBalance)}</p><p className="mt-1 text-xs text-[#5e6d63]">Pago mínimo {formatCOP(debt.minimumPayment)} · tasa {debt.interestRate}%</p></article>) : <Empty text="Aún no tienes deudas externas." />}</div></div>
     </div>
 
+    <div className={panelClass}><h2 className="text-lg font-semibold">Compras a cuotas</h2><div className="mt-5 grid gap-4 md:grid-cols-2">{state.installmentPlans.length ? state.installmentPlans.map((plan) => { const pending = plan.installments.filter((item) => item.status === "pending"); return <article key={plan.id} className="rounded-2xl border border-[#e0e4dd] p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{plan.description}</p><p className="mt-1 text-xs text-[#5e6d63]">{plan.installmentCount} cuotas · compra {new Date(`${plan.purchaseDate}T12:00:00`).toLocaleDateString("es-CO")}</p></div><CreditCard size={18} className="text-[#4f6c5c]" /></div><p className="mt-4 text-xl font-semibold">{formatCOP(plan.totalAmount)}</p><p className="mt-1 text-xs text-[#5e6d63]">{pending.length} cuotas pendientes</p><div className="mt-4 space-y-2">{plan.installments.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#f6f7f3] px-3 py-2"><div><p className="text-xs font-semibold">Cuota {item.number} · {formatCOP(item.amount)}</p><p className="mt-0.5 text-[10px] text-[#5e6d63]">{new Date(`${item.dueDate}T12:00:00`).toLocaleDateString("es-CO")}{item.paidAt ? ` · pagada ${new Date(`${item.paidAt}T12:00:00`).toLocaleDateString("es-CO")}` : ""}</p></div><button type="button" disabled={saving} onClick={() => void mutate({ type: "installment_payment", installment: { installmentId: item.id, paid: item.status !== "paid", paidAt: new Date().toISOString().slice(0, 10) } }, false)} className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold ${item.status === "paid" ? "bg-white text-[#52665a]" : "bg-[#17231e] text-white"}`}>{item.status === "paid" ? <><RotateCcw size={12} />Reabrir</> : <><Check size={12} />Marcar pagada</>}</button></div>)}</div></article>; }) : <Empty text="Aún no hay compras a cuotas." />}</div></div>
+
     <div className={panelClass}>
-      <h2 className="text-lg font-semibold">Compras a cuotas</h2>
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        {state.installmentPlans.length ? state.installmentPlans.map((plan) => {
-          const pending = plan.installments.filter((item) => item.status === "pending");
-          return <article key={plan.id} className="rounded-2xl border border-[#e0e4dd] p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{plan.description}</p><p className="mt-1 text-xs text-[#5e6d63]">{plan.installmentCount} cuotas · compra {new Date(`${plan.purchaseDate}T12:00:00`).toLocaleDateString("es-CO")}</p></div><CreditCard size={18} className="text-[#4f6c5c]" /></div><p className="mt-4 text-xl font-semibold">{formatCOP(plan.totalAmount)}</p><p className="mt-1 text-xs text-[#5e6d63]">{pending.length} cuotas pendientes</p><div className="mt-4 space-y-2">{plan.installments.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#f6f7f3] px-3 py-2"><div><p className="text-xs font-semibold">Cuota {item.number} · {formatCOP(item.amount)}</p><p className="mt-0.5 text-[10px] text-[#5e6d63]">{new Date(`${item.dueDate}T12:00:00`).toLocaleDateString("es-CO")}{item.paidAt ? ` · pagada ${new Date(`${item.paidAt}T12:00:00`).toLocaleDateString("es-CO")}` : ""}</p></div><button type="button" disabled={saving} onClick={() => void mutate({ type: "installment_payment", installment: { installmentId: item.id, paid: item.status !== "paid", paidAt: new Date().toISOString().slice(0, 10) } }, false)} className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold ${item.status === "paid" ? "bg-white text-[#52665a]" : "bg-[#17231e] text-white"}`}>{item.status === "paid" ? <><RotateCcw size={12} />Reabrir</> : <><Check size={12} />Marcar pagada</>}</button></div>)}</div></article>;
-        }) : <Empty text="Aún no hay compras a cuotas." />}
-      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-semibold">Registrar o conciliar</h2><p className="mt-1 text-sm text-[#5e6d63]">Los formularios permanecen cerrados hasta que necesites realizar una acción.</p></div><button type="button" onClick={() => setActionOpen((open) => !open)} aria-expanded={actionOpen} className="flex h-10 w-fit items-center gap-2 rounded-xl bg-[#17231e] px-4 text-sm font-semibold text-white">{actionOpen ? <X size={16} /> : <Plus size={16} />}{actionOpen ? "Cerrar formulario" : "Agregar obligación"}</button></div>
+      {actionOpen && <div className="mt-6 border-t border-[#edf0eb] pt-5"><div className="mb-5 flex flex-wrap gap-2">{([ ["installment", "Compra a cuotas"], ["debt", "Nueva deuda"], ["payment", "Registrar abono"], ["reconcile", "Conciliar transferencia"] ] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setAction(value)} className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${action === value ? "bg-[#17231e] text-white" : "border border-[#dce1da] bg-white text-[#52665a]"}`}>{label}</button>)}</div>{action === "installment" && <InstallmentForm cards={cards} categories={financeState.categories} saving={saving} onSubmit={mutate} />}{action === "debt" && <DebtForm saving={saving} onSubmit={mutate} />}{action === "payment" && <PaymentForm debts={state.debts} accounts={assetAccounts} saving={saving} onSubmit={mutate} />}{action === "reconcile" && <ReconcileForm expenses={expenses} incomes={incomes} saving={saving} onSubmit={mutate} />}</div>}
     </div>
   </section>;
 }
 
-function Metric({ icon: Icon, label, value }: { icon: typeof CreditCard; label: string; value: string }) { return <div className={panelClass}><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#eef3ef] text-[#4f6c5c]"><Icon size={18} /></span><p className="mt-4 text-sm text-[#5e6d63]">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></div>; }
 function Empty({ text }: { text: string }) { return <p className="rounded-2xl border border-dashed border-[#cbd5cc] p-5 text-center text-sm text-[#5e6d63]">{text}</p>; }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block text-xs font-semibold text-[#52665a]">{label}{children}</label>; }
 function Submit({ saving, label }: { saving: boolean; label: string }) { return <button disabled={saving} className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#17231e] px-5 text-sm font-semibold text-white disabled:opacity-50 md:col-span-2"><Plus size={16} />{saving ? "Guardando…" : label}</button>; }
