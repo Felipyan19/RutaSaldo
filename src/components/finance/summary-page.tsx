@@ -26,7 +26,7 @@ export function SummaryPage() {
 
   return <>
     <div className="mb-7 max-w-2xl">
-      <h2 className="text-3xl font-semibold tracking-[-0.04em]">Panorama financiero</h2>
+      <h1 className="text-3xl font-semibold tracking-[-0.04em]">Panorama financiero</h1>
       <p className="mt-2 text-sm leading-6 text-[#5e6d63]">Saldos, ingresos y gastos consolidados en un solo lugar.</p>
     </div>
 
