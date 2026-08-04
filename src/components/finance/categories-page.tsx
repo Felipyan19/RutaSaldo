@@ -22,7 +22,7 @@ export function CategoriesPage() {
   const [headerActionsTarget, setHeaderActionsTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    setHeaderActionsTarget(document.querySelector("main > header > div:last-child"));
+    setHeaderActionsTarget(document.querySelector<HTMLElement>("main > header > div:last-child"));
   }, []);
 
   const analysis = useMemo(() => {
