@@ -13,3 +13,40 @@ export const installmentPlans = pgTable("installment_plans", { id: text("id").pr
 export const installments = pgTable("installments", { id: text("id").primaryKey(), workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }), planId: text("plan_id").notNull().references(() => installmentPlans.id, { onDelete: "cascade" }), number: integer("number").notNull(), amount: integer("amount").notNull(), dueDate: date("due_date").notNull(), status: text("status").notNull().default("pending"), paidAt: date("paid_at") }, (table) => ({ planNumberUnique: uniqueIndex("installments_plan_number_unique").on(table.planId, table.number) }));
 export const debts = pgTable("debts", { id: text("id").primaryKey(), workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }), name: text("name").notNull(), creditor: text("creditor").notNull(), originalAmount: integer("original_amount").notNull(), currentBalance: integer("current_balance").notNull(), interestRateBasisPoints: integer("interest_rate_basis_points").notNull().default(0), minimumPayment: integer("minimum_payment").notNull().default(0), paymentDueDay: integer("payment_due_day").notNull(), status: text("status").notNull().default("active"), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull() });
 export const debtPayments = pgTable("debt_payments", { id: text("id").primaryKey(), workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }), debtId: text("debt_id").notNull().references(() => debts.id, { onDelete: "cascade" }), accountId: text("account_id").notNull().references(() => accounts.id, { onDelete: "restrict" }), transactionId: text("transaction_id").notNull().references(() => transactions.id, { onDelete: "restrict" }), amount: integer("amount").notNull(), paidAt: date("paid_at").notNull(), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull() });
+
+export const fixedPaymentTemplates = pgTable("fixed_payment_templates", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  categoryId: text("category_id").references(() => categories.id, { onDelete: "set null" }),
+  defaultAccountId: text("default_account_id").references(() => accounts.id, { onDelete: "set null" }),
+  frequency: text("frequency").notNull().default("monthly"),
+  nextDueDate: date("next_due_date").notNull(),
+  amountType: text("amount_type").notNull().default("exact"),
+  expectedAmount: integer("expected_amount").notNull().default(0),
+  minimumAmount: integer("minimum_amount"),
+  maximumAmount: integer("maximum_amount"),
+  reminderDays: text("reminder_days").notNull().default("3,0"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const fixedPaymentOccurrences = pgTable("fixed_payment_occurrences", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  templateId: text("template_id").notNull().references(() => fixedPaymentTemplates.id, { onDelete: "cascade" }),
+  periodKey: text("period_key").notNull(),
+  dueDate: date("due_date").notNull(),
+  expectedAmount: integer("expected_amount").notNull().default(0),
+  actualAmount: integer("actual_amount"),
+  status: text("status").notNull().default("pending"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  completionSource: text("completion_source"),
+  transactionId: text("transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+  bankEmailMessageId: text("bank_email_message_id"),
+  notes: text("notes").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({ templatePeriodUnique: uniqueIndex("fixed_payment_occurrences_template_period_unique").on(table.templateId, table.periodKey) }));
