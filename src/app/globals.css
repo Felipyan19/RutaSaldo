@@ -257,13 +257,6 @@ button {
   }
 }
 
-/*
- * El OCR se muestra sobre una capa fija semitransparente. En Chrome/Windows,
- * mover degradados y barras con transform dentro de esa composición puede
- * provocar checkerboarding (mosaicos grises) mientras la GPU rasteriza.
- * Se conserva retroalimentación visual, pero limitada a cambios de opacidad
- * en elementos pequeños y con el diálogo aislado del fondo.
- */
 section[aria-labelledby="receipt-title"] {
   isolation: isolate;
   contain: layout paint;
@@ -290,16 +283,6 @@ section[aria-labelledby="receipt-title"] {
   50% {
     opacity: 1;
   }
-}
-
-/* La topbar queda reservada para navegación móvil y acciones. */
-main > header > div:first-child > div {
-  display: none;
-}
-
-main > header {
-  min-height: 4rem;
-  height: 4rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
