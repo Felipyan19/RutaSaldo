@@ -3,6 +3,7 @@ import { Manrope } from "next/font/google";
 import "./globals.css";
 import "./form-controls.css";
 import "./motion.css";
+import "./ocr-motion.css";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 
