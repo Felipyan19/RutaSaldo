@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "La transcripción debe tener entre 3 y 600 caracteres." }, { status: 400 });
   }
 
-  const model = process.env.GEMINI_VOICE_MODEL ?? process.env.GEMINI_OCR_MODEL ?? "gemini-2.5-flash";
+  const model = process.env.GEMINI_VOICE_MODEL ?? process.env.GEMINI_OCR_MODEL ?? "gemini-3.5-flash";
 
   try {
     const response = await fetch(
