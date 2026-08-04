@@ -7,7 +7,6 @@ import type { Account, Category, Transaction, TransactionKind, Transfer } from "
 import { scoreVoiceHint, type VoiceFinanceDraft } from "@/lib/voice-finance";
 
 type SpeechRecognitionEventLike = {
-  resultIndex?: number;
   results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }>;
 };
 type SpeechRecognitionErrorLike = { error: string };
@@ -34,15 +33,25 @@ declare global {
 
 const inputClass = "mt-1.5 h-11 w-full rounded-xl border border-[#dce1da] bg-white px-3 text-sm outline-none transition focus:border-[#819b8a] focus:ring-2 focus:ring-[#b7f34b]/30";
 const waveHeights = [10, 18, 27, 16, 32, 22, 13, 25, 17, 29, 14, 21];
+const SILENCE_DELAY_MS = 1500;
 
-function digits(value: string) { return value.replace(/\D/g, ""); }
+function digits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 function formatAmount(value: string | number | null) {
   const raw = digits(String(value ?? ""));
   return raw ? new Intl.NumberFormat("es-CO").format(Number(raw)) : "";
 }
+
+function normalizeTranscript(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 function accountCandidates(accounts: Account[]) {
   return accounts.map((account) => ({ id: account.id, labels: [account.name, account.institution, `${account.institution} ${account.name}`] }));
 }
+
 function categoryCandidates(categories: Category[]) {
   return categories.map((category) => ({ id: category.id, labels: [category.name] }));
 }
@@ -57,8 +66,8 @@ export function VoiceFinanceCapture({ accounts, categories, onSaveTransaction, o
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptRef = useRef("");
-  const finalTranscriptRef = useRef("");
-  const analyzeOnEndRef = useRef(false);
+  const analyzingRef = useRef(false);
+  const closingRef = useRef(false);
 
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -81,6 +90,7 @@ export function VoiceFinanceCapture({ accounts, categories, onSaveTransaction, o
   }, [amount, date, description, destinationAccountId, operation, sourceAccountId]);
 
   useEffect(() => () => {
+    closingRef.current = true;
     recognitionRef.current?.abort();
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
   }, []);
@@ -91,25 +101,37 @@ export function VoiceFinanceCapture({ accounts, categories, onSaveTransaction, o
   }
 
   function reset() {
+    closingRef.current = true;
     recognitionRef.current?.abort();
     clearSilenceTimer();
     recognitionRef.current = null;
     transcriptRef.current = "";
-    finalTranscriptRef.current = "";
-    analyzeOnEndRef.current = false;
+    analyzingRef.current = false;
     setTranscript("");
     setInterimTranscript("");
     setListening(false);
     setLoading(false);
     setError("");
     setDraft(null);
+    window.setTimeout(() => { closingRef.current = false; }, 0);
   }
 
-  function finishAfterSilence() {
-    const text = transcriptRef.current.trim();
-    if (text.length < 3) return;
-    analyzeOnEndRef.current = true;
+  function finishAndAnalyze() {
+    const text = normalizeTranscript(transcriptRef.current);
+    if (text.length < 3 || analyzingRef.current) return;
+
+    analyzingRef.current = true;
+    clearSilenceTimer();
+    setListening(false);
+    setInterimTranscript("");
     recognitionRef.current?.stop();
+    void analyze(text);
+  }
+
+  function scheduleSilenceDetection(text: string) {
+    clearSilenceTimer();
+    if (text.length < 3) return;
+    silenceTimerRef.current = setTimeout(finishAndAnalyze, SILENCE_DELAY_MS);
   }
 
   function startListening() {
@@ -120,45 +142,56 @@ export function VoiceFinanceCapture({ accounts, categories, onSaveTransaction, o
     }
 
     reset();
+    closingRef.current = false;
     const recognition = new Constructor();
     recognition.lang = "es-CO";
     recognition.interimResults = true;
     recognition.continuous = true;
     recognition.maxAlternatives = 1;
+
     recognition.onresult = (event) => {
-      let finalized = finalTranscriptRef.current;
+      let finalized = "";
       let interim = "";
-      const start = event.resultIndex ?? 0;
-      for (let index = start; index < event.results.length; index += 1) {
-        const phrase = event.results[index][0].transcript.trim();
+
+      // Chrome vuelve a enviar resultados anteriores en cada evento. Reconstruir
+      // toda la sesión evita anexar las mismas palabras repetidamente.
+      for (let index = 0; index < event.results.length; index += 1) {
+        const phrase = normalizeTranscript(event.results[index][0].transcript);
         if (!phrase) continue;
-        if (event.results[index].isFinal) finalized = `${finalized} ${phrase}`.trim();
-        else interim = `${interim} ${phrase}`.trim();
+        if (event.results[index].isFinal) finalized = normalizeTranscript(`${finalized} ${phrase}`);
+        else interim = normalizeTranscript(`${interim} ${phrase}`);
       }
-      finalTranscriptRef.current = finalized;
-      const combined = `${finalized} ${interim}`.trim();
+
+      const combined = normalizeTranscript(`${finalized} ${interim}`);
       transcriptRef.current = combined;
       setTranscript(finalized);
       setInterimTranscript(interim);
-      clearSilenceTimer();
-      if (combined.length >= 3) silenceTimerRef.current = setTimeout(finishAfterSilence, 1600);
+      scheduleSilenceDetection(combined);
     };
+
     recognition.onerror = (event) => {
       clearSilenceTimer();
-      analyzeOnEndRef.current = false;
       setListening(false);
-      setError(event.error === "not-allowed" ? "Permite el acceso al micrófono." : event.error === "no-speech" ? "No escuché una frase. Pulsa el micrófono e intenta de nuevo." : "El dictado se interrumpió. Intenta nuevamente.");
+      if (closingRef.current || analyzingRef.current || event.error === "aborted") return;
+      setError(event.error === "not-allowed"
+        ? "Permite el acceso al micrófono."
+        : event.error === "no-speech"
+          ? "No escuché una frase. Pulsa el micrófono e intenta de nuevo."
+          : "El dictado se interrumpió. Intenta nuevamente.");
     };
+
     recognition.onend = () => {
       clearSilenceTimer();
       setListening(false);
-      setInterimTranscript("");
-      const text = transcriptRef.current.trim();
-      if (analyzeOnEndRef.current && text.length >= 3) {
-        analyzeOnEndRef.current = false;
+      if (closingRef.current || analyzingRef.current) return;
+      const text = normalizeTranscript(transcriptRef.current);
+      if (text.length >= 3) {
+        analyzingRef.current = true;
+        setInterimTranscript("");
         void analyze(text);
       }
     };
+
     recognitionRef.current = recognition;
     recognition.start();
     setListening(true);
@@ -169,6 +202,8 @@ export function VoiceFinanceCapture({ accounts, categories, onSaveTransaction, o
     setError("");
     setDraft(null);
     setTranscript(text);
+    setInterimTranscript("");
+
     try {
       const response = await fetch("/api/ai/voice-finance", {
         method: "POST",
@@ -196,6 +231,7 @@ export function VoiceFinanceCapture({ accounts, categories, onSaveTransaction, o
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo interpretar la frase.");
     } finally {
+      analyzingRef.current = false;
       setLoading(false);
     }
   }
@@ -210,10 +246,10 @@ export function VoiceFinanceCapture({ accounts, categories, onSaveTransaction, o
     onSaveTransaction({ id: crypto.randomUUID(), kind: operation as TransactionKind, description: description.trim(), amount: numericAmount, accountId: sourceAccountId, categoryId: categoryId || null, date });
   }
 
-  const combinedTranscript = `${transcript} ${interimTranscript}`.trim();
+  const combinedTranscript = normalizeTranscript(`${transcript} ${interimTranscript}`);
 
   return (
-    <Modal title="Registrar por voz" subtitle={draft ? "Revisa o corrige los datos y guarda." : "Habla una vez; RutaSaldo detecta cuando terminas."} onClose={() => { recognitionRef.current?.abort(); onClose(); }}>
+    <Modal title="Registrar por voz" subtitle={draft ? "Revisa o corrige los datos y guarda." : "Habla una vez; RutaSaldo detecta cuando terminas."} onClose={() => { closingRef.current = true; clearSilenceTimer(); recognitionRef.current?.abort(); onClose(); }}>
       <div className="space-y-5">
         {!draft && !loading && (
           <section className={`rounded-3xl border p-5 text-center ${listening ? "border-[#9eb68d] bg-[#f1f7ee]" : "border-[#dce1da] bg-[#f8faf7]"}`} aria-live="polite">
@@ -221,7 +257,7 @@ export function VoiceFinanceCapture({ accounts, categories, onSaveTransaction, o
               <Mic size={30} />
             </button>
             <p className="mt-4 text-base font-semibold">{listening ? "Te estoy escuchando" : "Pulsa el micrófono y habla"}</p>
-            <p className="mt-1 text-xs text-[#68776e]">{listening ? "Al dejar de hablar por 1,6 segundos, prepararé el formulario." : "Ejemplo: Gasté 35 mil en mercado con Nequi"}</p>
+            <p className="mt-1 text-xs text-[#68776e]">{listening ? "Cuando dejes de hablar, prepararé el formulario automáticamente." : "Ejemplo: Gasté 35 mil en mercado con Nequi"}</p>
             <div className="mx-auto mt-5 flex h-9 max-w-52 items-center justify-center gap-1" aria-hidden="true">
               {waveHeights.map((height, index) => <span key={`${height}-${index}`} className={`w-1 rounded-full bg-[#5f806d] ${listening ? "voice-wave-bar" : "opacity-25"}`} style={{ height, animationDelay: `${index * 70}ms` }} />)}
             </div>
