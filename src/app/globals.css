@@ -257,11 +257,49 @@ button {
   }
 }
 
+/*
+ * El OCR se muestra sobre una capa fija semitransparente. En Chrome/Windows,
+ * mover degradados y barras con transform dentro de esa composición puede
+ * provocar checkerboarding (mosaicos grises) mientras la GPU rasteriza.
+ * Se conserva retroalimentación visual, pero limitada a cambios de opacidad
+ * en elementos pequeños y con el diálogo aislado del fondo.
+ */
+section[aria-labelledby="receipt-title"] {
+  isolation: isolate;
+  contain: layout paint;
+}
+
+.ai-scan {
+  display: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+.ai-soft-pulse,
+.ai-progress,
+.ai-status-dot {
+  transform: none !important;
+  animation: rutasaldo-ocr-opacity 1.6s ease-in-out infinite !important;
+}
+
+@keyframes rutasaldo-ocr-opacity {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rutasaldo-loader__mark-box,
   .rutasaldo-loader__orbit,
   .rutasaldo-loader__progress::after,
-  .rutasaldo-button-spinner {
+  .rutasaldo-button-spinner,
+  .ai-soft-pulse,
+  .ai-progress,
+  .ai-status-dot {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
   }
