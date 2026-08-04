@@ -1,0 +1,89 @@
+/* Movimiento OCR de bajo costo: solo cambia opacidad y color en capas pequeñas. */
+section[aria-labelledby="receipt-title"] .ai-scan {
+  display: block !important;
+  transform: none !important;
+  opacity: 0.08;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgb(129 155 138 / 16%),
+    transparent
+  ) !important;
+  animation: rutasaldo-ocr-preview-glow 2.4s ease-in-out infinite !important;
+  will-change: opacity;
+  contain: strict;
+}
+
+section[aria-labelledby="receipt-title"] .ai-soft-pulse {
+  transform: none !important;
+  animation: rutasaldo-ocr-icon-pulse 1.9s ease-in-out infinite !important;
+  will-change: opacity;
+}
+
+section[aria-labelledby="receipt-title"] .ai-progress {
+  transform: none !important;
+  animation: rutasaldo-ocr-progress-pulse 1.55s ease-in-out infinite !important;
+  will-change: opacity, background-color;
+}
+
+section[aria-labelledby="receipt-title"] .ai-status-dot {
+  transform: none !important;
+  animation: rutasaldo-ocr-status-pulse 1.55s ease-in-out 180ms infinite !important;
+  will-change: opacity;
+}
+
+@keyframes rutasaldo-ocr-preview-glow {
+  0%,
+  100% {
+    opacity: 0.06;
+  }
+  50% {
+    opacity: 0.28;
+  }
+}
+
+@keyframes rutasaldo-ocr-icon-pulse {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes rutasaldo-ocr-progress-pulse {
+  0%,
+  100% {
+    opacity: 0.48;
+    background-color: #9aada0;
+  }
+  50% {
+    opacity: 1;
+    background-color: #6f8f7c;
+  }
+}
+
+@keyframes rutasaldo-ocr-status-pulse {
+  0%,
+  100% {
+    opacity: 0.38;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  section[aria-labelledby="receipt-title"] .ai-scan,
+  section[aria-labelledby="receipt-title"] .ai-soft-pulse,
+  section[aria-labelledby="receipt-title"] .ai-progress,
+  section[aria-labelledby="receipt-title"] .ai-status-dot {
+    animation: none !important;
+    will-change: auto;
+  }
+
+  section[aria-labelledby="receipt-title"] .ai-scan {
+    opacity: 0.12;
+  }
+}
