@@ -28,9 +28,7 @@ a:active,
   transform: scale(0.975);
 }
 
-button:disabled {
-  cursor: not-allowed;
-}
+button:disabled { cursor: not-allowed; }
 
 button:focus-visible,
 a:focus-visible,
@@ -41,45 +39,18 @@ textarea:focus-visible {
   outline-offset: 3px;
 }
 
-/* Route content enters quietly, like a native work app. */
-main > div:not(header) {
-  animation: rutasaldo-content-in var(--motion-slow) var(--motion-ease-out) both;
-}
+main > div:not(header) { animation: rutasaldo-content-in var(--motion-slow) var(--motion-ease-out) both; }
+[role="menu"] { transform-origin: top right; animation: rutasaldo-popover-in var(--motion-base) var(--motion-ease-out) both; }
+section[role="dialog"] { transform-origin: top right; animation: rutasaldo-popover-in var(--motion-base) var(--motion-ease-out) both; }
+div[role="dialog"], aside[role="dialog"] { animation: rutasaldo-dialog-in var(--motion-slow) var(--motion-ease-out) both; }
+aside[role="dialog"] { animation-name: rutasaldo-drawer-in; }
 
-/* Menus and notification surfaces grow from their trigger. */
-[role="menu"] {
-  transform-origin: top right;
-  animation: rutasaldo-popover-in var(--motion-base) var(--motion-ease-out) both;
-}
-
-section[role="dialog"] {
-  transform-origin: top right;
-  animation: rutasaldo-popover-in var(--motion-base) var(--motion-ease-out) both;
-}
-
-/* Full modal surfaces use a calmer lift. */
-div[role="dialog"],
-aside[role="dialog"] {
-  animation: rutasaldo-dialog-in var(--motion-slow) var(--motion-ease-out) both;
-}
-
-/* Mobile drawer slides from its physical edge. */
-aside[role="dialog"] {
-  animation-name: rutasaldo-drawer-in;
-}
-
-/* Backdrops fade instead of appearing abruptly. */
 .fixed.inset-0.bg-black\/40,
 .fixed.inset-0.z-20,
 .fixed.inset-0.z-40 > button.absolute.inset-0 {
   animation: rutasaldo-backdrop-in var(--motion-base) ease-out both;
 }
 
-/*
- * Only independent semantic cards receive depth feedback.
- * Structural sections, charts and nested bordered surfaces stay anchored to
- * the page background so parent and child containers never lift together.
- */
 @media (hover: hover) and (pointer: fine) {
   main article {
     transition:
@@ -87,71 +58,59 @@ aside[role="dialog"] {
       box-shadow var(--motion-base) var(--motion-ease),
       border-color var(--motion-base) ease;
   }
-
-  main article:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 14px 34px rgb(23 35 30 / 7%);
-  }
+  main article:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgb(23 35 30 / 7%); }
 }
 
-/* Sidebar navigation feels selected rather than abruptly recolored. */
 nav a svg,
 [role="menuitem"] svg,
-button svg {
-  transition: transform var(--motion-base) var(--motion-ease);
-}
-
+button svg { transition: transform var(--motion-base) var(--motion-ease); }
 nav a:hover svg,
-[role="menuitem"]:hover svg {
-  transform: translateX(2px);
-}
+[role="menuitem"]:hover svg { transform: translateX(2px); }
 
-/* New badges and alert dots appear with a compact spring-like scale. */
 [aria-label="Sin leer"],
 button[aria-label^="Notificaciones"] > span {
   animation: rutasaldo-badge-in var(--motion-base) var(--motion-ease-out) both;
 }
 
+/* Dictado en vivo: solo opacidad en elementos pequeños; no mueve el modal ni el fondo. */
+.voice-wave-bar {
+  animation: rutasaldo-voice-wave 820ms ease-in-out infinite alternate;
+  will-change: opacity;
+}
+
+.voice-caret {
+  animation: rutasaldo-voice-caret 900ms steps(1, end) infinite;
+  will-change: opacity;
+}
+
+@keyframes rutasaldo-voice-wave {
+  from { opacity: 0.28; }
+  to { opacity: 1; }
+}
+
+@keyframes rutasaldo-voice-caret {
+  0%, 48% { opacity: 1; }
+  49%, 100% { opacity: 0; }
+}
+
 @keyframes rutasaldo-content-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes rutasaldo-popover-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes rutasaldo-dialog-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes rutasaldo-drawer-in {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
 
 @keyframes rutasaldo-backdrop-in {
@@ -160,48 +119,28 @@ button[aria-label^="Notificaciones"] > span {
 }
 
 @keyframes rutasaldo-badge-in {
-  from {
-    opacity: 0;
-    transform: scale(0.55);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.55); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 @media (max-width: 639px) {
-  section[role="dialog"] {
-    transform-origin: top center;
-    animation-name: rutasaldo-mobile-sheet-in;
-  }
-
+  section[role="dialog"] { transform-origin: top center; animation-name: rutasaldo-mobile-sheet-in; }
   @keyframes rutasaldo-mobile-sheet-in {
-    from {
-      opacity: 0;
-      transform: translateY(10px) scale(0.985);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
+    from { opacity: 0; transform: translateY(10px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-
   button:active,
   a:active,
   [role="menuitem"]:active,
-  main article:hover {
-    transform: none !important;
-  }
+  main article:hover { transform: none !important; }
+  .voice-wave-bar, .voice-caret { will-change: auto; }
 }
