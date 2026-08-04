@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Banknote, CreditCard, Landmark, WalletCards } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Banknote, CreditCard, Landmark, Scale, WalletCards } from "lucide-react";
 import { Account, accountBalance, creditCardAvailable, creditCardDebt, FinanceState, formatCOP } from "@/lib/finance";
 import { useFinance } from "./finance-provider";
 import { Modal } from "@/components/modal";
@@ -25,12 +25,55 @@ export function AccountsPage() {
   const { state } = useFinance();
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
+  const analysis = useMemo(() => {
+    const rows = state.accounts.map((account) => ({
+      account,
+      value: account.kind === "credit_card" ? creditCardDebt(account, state.transactions) : accountBalance(account, state.transactions),
+    }));
+    const available = rows.filter((item) => item.account.kind !== "credit_card").reduce((sum, item) => sum + item.value, 0);
+    const debt = rows.filter((item) => item.account.kind === "credit_card").reduce((sum, item) => sum + item.value, 0);
+    const activity = state.accounts.map((account) => ({
+      account,
+      count: state.transactions.filter((item) => item.accountId === account.id).length,
+    })).sort((a, b) => b.count - a.count);
+    return { rows, available, debt, net: available - debt, activity };
+  }, [state]);
+  const largestBalance = Math.max(1, ...analysis.rows.map((item) => Math.abs(item.value)));
+
   return (
-    <section>
-      <div className="mb-7 max-w-2xl">
-        <h2 className="text-2xl font-semibold tracking-tight">Tus cuentas</h2>
-        <p className="mt-2 text-sm leading-6 text-[#5e6d63]">Consulta saldos, cupos e historial de bancos, billeteras, efectivo y tarjetas.</p>
+    <section className="space-y-5">
+      <div className="max-w-2xl">
+        <h1 className="text-3xl font-semibold tracking-[-0.04em]">Cuentas</h1>
+        <p className="mt-2 text-sm leading-6 text-[#5e6d63]">Compara liquidez, deuda y actividad antes de abrir el historial de cada cuenta.</p>
       </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric icon={WalletCards} label="Saldo disponible" value={formatCOP(analysis.available)} />
+        <Metric icon={CreditCard} label="Deuda en tarjetas" value={formatCOP(analysis.debt)} />
+        <Metric icon={Scale} label="Posición neta" value={formatCOP(analysis.net)} />
+        <Metric icon={Landmark} label="Cuentas registradas" value={String(state.accounts.length)} />
+      </div>
+
+      {state.accounts.length > 0 && <div className="grid gap-5 xl:grid-cols-[1.15fr_.85fr]">
+        <div className="rounded-3xl border border-[#e0e4dd] bg-white p-5 md:p-7">
+          <h2 className="font-semibold">Distribución de saldos y deuda</h2>
+          <p className="mt-1 text-xs text-[#5e6d63]">Las tarjetas muestran deuda; las demás cuentas muestran saldo.</p>
+          <div className="mt-6 space-y-4">
+            {analysis.rows.sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).map(({ account, value }) => <div key={account.id}>
+              <div className="mb-1.5 flex items-center justify-between gap-3 text-xs"><span className="min-w-0 truncate font-medium">{account.name}</span><span className="shrink-0 font-semibold">{formatCOP(value)}</span></div>
+              <div className="h-2 overflow-hidden rounded-full bg-[#edf0eb]"><div className="h-full rounded-full" style={{ width: `${Math.max(4, (Math.abs(value) / largestBalance) * 100)}%`, backgroundColor: account.color }} /></div>
+            </div>)}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-[#e0e4dd] bg-white p-5 md:p-7">
+          <h2 className="font-semibold">Actividad por cuenta</h2>
+          <p className="mt-1 text-xs text-[#5e6d63]">Dónde se concentra tu historial financiero.</p>
+          <div className="mt-5 space-y-3">
+            {analysis.activity.slice(0, 5).map(({ account, count }) => <div key={account.id} className="flex items-center gap-3 rounded-2xl bg-[#f6f7f3] p-3"><span className="h-3 w-3 rounded-full" style={{ backgroundColor: account.color }} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{account.name}</p><p className="mt-0.5 text-xs text-[#5e6d63]">{account.institution}</p></div><span className="text-sm font-semibold">{count}</span></div>)}
+          </div>
+        </div>
+      </div>}
 
       {!state.accounts.length && (
         <div className="rounded-3xl border border-dashed border-[#cbd5cc] bg-white px-5 py-10 text-center md:px-8">
@@ -41,7 +84,7 @@ export function AccountsPage() {
       )}
 
       {state.accounts.length === 1 && (
-        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-[#dde8df] bg-[#f3f7f4] p-4 text-sm leading-6 text-[#52665a]">
+        <div className="flex items-start gap-3 rounded-2xl border border-[#dde8df] bg-[#f3f7f4] p-4 text-sm leading-6 text-[#52665a]">
           <WalletCards className="mt-0.5 shrink-0" size={17} aria-hidden="true" />
           <p>Agrega otra cuenta para habilitar transferencias internas sin registrarlas como ingreso o gasto.</p>
         </div>
@@ -70,6 +113,10 @@ export function AccountsPage() {
       )}
     </section>
   );
+}
+
+function Metric({ icon: Icon, label, value }: { icon: typeof WalletCards; label: string; value: string }) {
+  return <div className="rounded-2xl border border-[#e0e4dd] bg-white p-4"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#eef3ef] text-[#4f6c5c]"><Icon size={17} /></span><p className="mt-4 text-xs text-[#5e6d63]">{label}</p><p className="mt-1 break-words text-xl font-semibold tracking-tight">{value}</p></div>;
 }
 
 function AccountHeader({ account, dark = false }: { account: Account; dark?: boolean }) {
