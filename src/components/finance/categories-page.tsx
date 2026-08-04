@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { CircleDollarSign, Layers3, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import type { Category } from "@/lib/finance";
 import { formatCOP } from "@/lib/finance";
@@ -18,6 +19,11 @@ export function CategoriesPage() {
   const [selected, setSelected] = useState<Category | null>(null);
   const [editing, setEditing] = useState<Category | "new" | null>(null);
   const [sort, setSort] = useState<SortMode>("expense");
+  const [headerActionsTarget, setHeaderActionsTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setHeaderActionsTarget(document.querySelector<HTMLElement>("main > header > div:last-child"));
+  }, []);
 
   const analysis = useMemo(() => {
     const expenses = state.transactions.filter((item) => item.kind === "expense" && !item.transferId);
@@ -42,10 +48,11 @@ export function CategoriesPage() {
     if (await deleteCategory(category.id)) { setSelected(null); setEditing(null); }
   }
 
-  const action = <button type="button" onClick={() => setEditing("new")} className="flex h-10 w-fit items-center gap-2 rounded-xl bg-[#17231e] px-4 text-sm font-semibold text-white"><Plus size={16} aria-hidden="true" />Nueva categoría</button>;
+  const action = <button type="button" onClick={() => setEditing("new")} className="flex h-10 w-fit items-center gap-2 rounded-xl bg-[#17231e] px-4 text-sm font-semibold text-white"><Plus size={16} aria-hidden="true" /><span className="hidden sm:inline">Categoría</span></button>;
 
   return <section className="space-y-5">
-    <PageHeader title="Categorías" description="Descubre qué categorías concentran tus gastos y cuáles necesitan organización." action={action} />
+    {headerActionsTarget && createPortal(action, headerActionsTarget)}
+    <PageHeader title="Categorías" description="Descubre qué categorías concentran tus gastos y cuáles necesitan organización." />
 
     <div className="grid gap-3 sm:grid-cols-3">
       <MetricCard icon={CircleDollarSign} label="Gasto categorizado" value={formatCOP(analysis.totalExpense)} featured />

@@ -1,0 +1,105 @@
+/* Movimiento OCR de bajo costo: solo cambia opacidad y color en capas pequeñas. */
+section[aria-labelledby="receipt-title"] {
+  isolation: isolate;
+  contain: layout paint;
+}
+
+section[aria-labelledby="receipt-title"] .ai-soft-pulse {
+  transform: none !important;
+  animation: rutasaldo-ocr-icon-pulse 1.9s ease-in-out infinite !important;
+  will-change: opacity;
+}
+
+section[aria-labelledby="receipt-title"] .ai-progress {
+  transform: none !important;
+  animation: rutasaldo-ocr-progress-pulse 1.55s ease-in-out infinite !important;
+  will-change: opacity, background-color;
+}
+
+section[aria-labelledby="receipt-title"] .ai-status-dot {
+  transform: none !important;
+  animation: rutasaldo-ocr-status-pulse 1.55s ease-in-out 180ms infinite !important;
+  will-change: opacity;
+}
+
+section[aria-labelledby="receipt-title"] .ocr-preview-glow {
+  transform: none !important;
+  animation: rutasaldo-ocr-preview-glow 2.4s ease-in-out infinite !important;
+  will-change: opacity;
+  contain: strict;
+}
+
+section[aria-labelledby="receipt-title"] .ocr-activity-bar {
+  transform: none !important;
+  animation: rutasaldo-ocr-activity 1.25s ease-in-out infinite !important;
+  will-change: opacity, background-color;
+}
+
+@keyframes rutasaldo-ocr-preview-glow {
+  0%,
+  100% {
+    opacity: 0.06;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes rutasaldo-ocr-icon-pulse {
+  0%,
+  100% {
+    opacity: 0.64;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes rutasaldo-ocr-progress-pulse {
+  0%,
+  100% {
+    opacity: 0.42;
+    background-color: #9aada0;
+  }
+  50% {
+    opacity: 1;
+    background-color: #6f8f7c;
+  }
+}
+
+@keyframes rutasaldo-ocr-status-pulse {
+  0%,
+  100% {
+    opacity: 0.38;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes rutasaldo-ocr-activity {
+  0%,
+  100% {
+    opacity: 0.28;
+    background-color: #a9b7ae;
+  }
+  50% {
+    opacity: 1;
+    background-color: #6f8f7c;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  section[aria-labelledby="receipt-title"] .ai-soft-pulse,
+  section[aria-labelledby="receipt-title"] .ai-progress,
+  section[aria-labelledby="receipt-title"] .ai-status-dot,
+  section[aria-labelledby="receipt-title"] .ocr-preview-glow,
+  section[aria-labelledby="receipt-title"] .ocr-activity-bar {
+    animation: none !important;
+    will-change: auto;
+  }
+
+  section[aria-labelledby="receipt-title"] .ocr-preview-glow {
+    opacity: 0.1;
+  }
+}
